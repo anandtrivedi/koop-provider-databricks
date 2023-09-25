@@ -19,9 +19,9 @@ function Model (koop) {}
 // req.
 //
 // URL path parameters:
-// req.params.id  (if index.js:disableIdParam false)
-// req.params.layer
-// req.params.method
+// req.params.id
+// req.params.layer - not used, leave as '0'
+// req.params.method - should be 'query'
 Model.prototype.getData = function (req, callback) {
 
   const token          = process.env.DATABRICKS_TOKEN;
