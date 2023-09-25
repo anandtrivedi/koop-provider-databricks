@@ -1,7 +1,7 @@
 {
-  "name": "koop-provider-sample",
-  "version": "1.0.0",
-  "description": "A sample provider for koop",
+  "name": "koop-provider-databricks",
+  "version": "0.0.1",
+  "description": "A Databricks provider for koop",
   "main": "src/index.js",
   "directories": {
     "test": "test"
@@ -11,30 +11,31 @@
     "test": "standard && tape test/*.js | tap-spec"
   },
   "dependencies": {
+    "@databricks/sql": "^1.5.0",
     "config": "^3.2.5",
     "koop": "^3.17.0",
-    "request": "^2.88.0"
+    "request": "^2.88.0",
+    "wellknown": "^0.5.0"
   },
-  "author": "Daniel Fenton",
+  "author": "Stuart Lynn",
   "license": "Apache-2.0",
   "devDependencies": {
     "@koopjs/cli": "^0.6.0",
-    "nock": "^12.0.0",
     "standard": "^14.3.1",
     "tap-spec": "^5.0.0",
     "tape": "^5.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/koopjs/koop-provider-sample.git"
+    "url": "git+https://github.com/sllynn/koop-provider-databricks.git"
   },
   "bugs": {
-    "url": "https://github.com/koopjs/koop-provider-sample/issues"
+    "url": "https://github.com/sllynn/koop-provider-databricks/issues"
   },
-  "homepage": "https://github.com/koopjs/koop-provider-sample",
+  "homepage": "https://github.com/sllynn/koop-provider-databricks",
   "keywords": [
     "koop",
     "provider",
-    "sample"
+    "databricks"
   ]
 }

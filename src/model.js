@@ -5,109 +5,88 @@
 
   Documentation: http://koopjs.github.io/docs/usage/provider
 */
-const request = require('request').defaults({ gzip: true, json: true })
-const config = require('config')
+// const request = require('request').defaults({ gzip: true, json: true })
+const { DBSQLClient } = require('@databricks/sql');
+
+// const config = require('config')
+
 
 function Model (koop) {}
 
-// Public function to return data from the
+// Public function to return data from a Databricks SQL Endpoint
 // Return: GeoJSON FeatureCollection
 //
-// Config parameters (config/default.json)
 // req.
 //
 // URL path parameters:
-// req.params.host (if index.js:hosts true)
 // req.params.id  (if index.js:disableIdParam false)
 // req.params.layer
 // req.params.method
 Model.prototype.getData = function (req, callback) {
-  const key = config.trimet.key
 
-  // Call the remote API with our developer key
-  request(`https://developer.trimet.org/ws/v2/vehicles/onRouteOnly/false/appid/${key}`, (err, res, body) => {
-    if (err) return callback(err)
+  const token          = process.env.DATABRICKS_TOKEN;
+  const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME;
+  const httpPath       = process.env.DATABRICKS_HTTP_PATH;
 
-    // translate the response into geojson
-    const geojson = translate(body)
+  if (!token || !serverHostname || !httpPath) {
+    throw new Error("Cannot find Server Hostname, HTTP Path, or personal access token. " +
+      "Check the environment variables DATABRICKS_TOKEN, " +
+      "DATABRICKS_SERVER_HOSTNAME, and DATABRICKS_HTTP_PATH.");
+  }
 
-    // Optional: cache data for 10 seconds at a time by setting the ttl or "Time to Live"
-    // geojson.ttl = 10
+  const client = new DBSQLClient();
+  const connectOptions = {
+    token: token,
+    host: serverHostname,
+    path: httpPath
+  };
 
-    // Optional: Service metadata and geometry type
-    // geojson.metadata = {
-    //   name: 'Koop Sample Provider',
-    //   description: `Generated from ${url}`,
-    //   geometryType: 'Polygon' // Default is automatic detection in Koop
-    // }
+  client.connect(connectOptions)
+    .then(async client => {
+      const session = await client.openSession();
 
-    // hand off the data to Koop
-    callback(null, geojson)
-  })
+      const queryOperation = await session.executeStatement(
+        `SELECT * FROM ${req.params.id}`,
+        {
+          runAsync: true,
+          maxRows: 10000 // This option enables the direct results feature.
+        }
+      );
+
+      const result = await queryOperation.fetchAll();
+
+      await queryOperation.close();
+
+      // hand off the data to Koop
+      const geojson = translate(result)
+      callback(null, geojson)
+
+      await session.close();
+      await client.close();
+    })
+    .catch((error) => {
+      console.log(error);
+    })
+
 }
+
 
 function translate (input) {
   return {
     type: 'FeatureCollection',
-    features: input.resultSet.vehicle.map(formatFeature)
+    features: input.map(formatFeature)
   }
 }
 
 function formatFeature (inputFeature) {
-  // Most of what we need to do here is extract the longitude and latitude
-  const feature = {
-    type: 'Feature',
-    properties: inputFeature,
-    geometry: {
-      type: 'Point',
-      coordinates: [inputFeature.longitude, inputFeature.latitude]
-    }
+  parser = require('wellknown')
+  const parsed = parser.parse(inputFeature.the_geom)
+  delete inputFeature.the_geom
+  return {
+    type: "Feature",
+    geometry: parsed,
+    properties: inputFeature
   }
-  // But we also want to translate a few of the date fields so they are easier to use downstream
-  const dateFields = ['expires', 'serviceDate', 'time']
-  dateFields.forEach(field => {
-    feature.properties[field] = new Date(feature.properties[field]).toISOString()
-  })
-  return feature
 }
 
 module.exports = Model
-
-/* Example provider API:
-   - needs to be converted to GeoJSON Feature Collection
-{
-  "resultSet": {
-  "queryTime": 1488465776220,
-  "vehicle": [
-    {
-      "tripID": "7144393",
-      "signMessage": "Red Line to Beaverton",
-      "expires": 1488466246000,
-      "serviceDate": 1488441600000,
-      "time": 1488465767051,
-      "latitude": 45.5873117,
-      "longitude": -122.5927705,
-    }
-  ]
-}
-
-Converted to GeoJSON:
-
-{
-  "type": "FeatureCollection",
-  "features": [
-    "type": "Feature",
-    "properties": {
-      "tripID": "7144393",
-      "signMessage": "Red Line to Beaverton",
-      "expires": "2017-03-02T14:50:46.000Z",
-      "serviceDate": "2017-03-02T08:00:00.000Z",
-      "time": "2017-03-02T14:42:47.051Z",
-    },
-    "geometry": {
-      "type": "Point",
-      "coordinates": [-122.5927705, 45.5873117]
-    }
-  ]
-}
-*/

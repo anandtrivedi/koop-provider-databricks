@@ -11,7 +11,7 @@
 // e.g. /example/FeatureServer/0/query
 const provider = {
   type: 'provider',
-  name: 'example',
+  name: 'databricks',
   hosts: false, // if true, also adds disableIdParam
   disableIdParam: true, // if true, adds to path and req.params
   Controller: require('./controller'),
