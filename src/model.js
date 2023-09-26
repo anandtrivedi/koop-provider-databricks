@@ -57,7 +57,7 @@ Model.prototype.getData = function (req, callback) {
       // hand off the data to Koop
       const geojson = translate(result)
       geojson.metadata = geojson.metadata || {}
-      geojson.metadata.idField = 'displayId'
+      geojson.metadata.idField = 'OBJECTID'
       geojson.metadata.name = `Databricks query against table ${table}`
       callback(null, geojson)
 
