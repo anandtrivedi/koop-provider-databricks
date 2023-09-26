@@ -21,6 +21,6 @@ test('should properly fetch from the API and translate features', t => {
     // t.deepEqual(feature.geometry.coordinates[0][0][0], [-74.18445299999996, 40.694995999999904], 'translates geometry correctly')
     // t.ok(feature.properties, 'creates attributes')
     // t.equal(feature.properties.zone, 'Newark Airport', 'extracts zone property field correctly')
-    // t.end()
+    t.end()
   })
 })
