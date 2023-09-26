@@ -10,7 +10,7 @@ const Model = require('../src/model')
 const model = new Model()
 
 test('should properly fetch from the API and translate features', t => {
-  model.getData({params: {id: "stuart.bp_geo_perf.test_geometries"}}, (err, geojson) => {
+  model.getData({ params: { id: 'stuart.bp_geo_perf.test_geometries' } }, (err, geojson) => {
     t.error(err)
     t.equal(geojson.type, 'FeatureCollection', 'creates a feature collection object')
     t.ok(geojson.features, 'has features')

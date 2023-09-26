@@ -6,7 +6,7 @@
   Documentation: http://koopjs.github.io/docs/usage/provider
 */
 // const request = require('request').defaults({ gzip: true, json: true })
-const { DBSQLClient } = require('@databricks/sql')
+// const { DBSQLClient } = require('@databricks/sql')
 
 // const config = require('config')
 
@@ -22,24 +22,23 @@ function Model (koop) {}
 // req.params.layer - not used, leave as '0'
 // req.params.method - should be 'query'
 Model.prototype.getData = function (req, callback) {
-
-  const token = process.env.DATABRICKS_TOKEN
-  const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
-  const httpPath = process.env.DATABRICKS_HTTP_PATH
-
-  if (!token || !serverHostname || !httpPath) {
-    throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
-      'Check the environment variables DATABRICKS_TOKEN, ' +
-      'DATABRICKS_SERVER_HOSTNAME, and DATABRICKS_HTTP_PATH.')
-  }
-
-  const client = new DBSQLClient()
-  const connectOptions = {
-    token: token,
-    host: serverHostname,
-    path: httpPath
-  }
-
+  // const token = process.env.DATABRICKS_TOKEN
+  // const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
+  // const httpPath = process.env.DATABRICKS_HTTP_PATH
+  //
+  // if (!token || !serverHostname || !httpPath) {
+  //   throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
+  //     'Check the environment variables DATABRICKS_TOKEN, ' +
+  //     'DATABRICKS_SERVER_HOSTNAME, and DATABRICKS_HTTP_PATH.')
+  // }
+  //
+  // const client = new DBSQLClient()
+  // const connectOptions = {
+  //   token: token,
+  //   host: serverHostname,
+  //   path: httpPath
+  // }
+  //
   // client.connect(connectOptions)
   //   .then(async client => {
   //     const session = await client.openSession();
@@ -67,7 +66,7 @@ Model.prototype.getData = function (req, callback) {
   //     console.log(error);
   //   })
 
-  let geojson = {
+  const geojson = {
     type: 'FeatureCollection',
     features: [{
       type: 'Feature',
@@ -117,7 +116,7 @@ Model.prototype.getData = function (req, callback) {
       //     'displayId': 2
       //   }
       // }
-    ],
+    ]
     // "metadata": {
     //   "geometryType": "Point",
     //   "idField": "displayId",
@@ -128,29 +127,28 @@ Model.prototype.getData = function (req, callback) {
     //   }
     // ]
   // }
-}
+  }
   geojson.metadata = geojson.metadata || {}
-  geojson.metadata.idField = "displayId"
+  geojson.metadata.idField = 'displayId'
   callback(null, geojson)
-
 }
 
-function translate (input) {
-  return {
-    type: 'FeatureCollection',
-    features: input.map(formatFeature)
-  }
-}
-
-function formatFeature (inputFeature) {
-  parser = require('wellknown')
-  const parsed = parser.parse(inputFeature.the_geom)
-  delete inputFeature.the_geom
-  return {
-    type: 'Feature',
-    geometry: parsed,
-    properties: inputFeature
-  }
-}
+// function translate (input) {
+//   return {
+//     type: 'FeatureCollection',
+//     features: input.map(formatFeature)
+//   }
+// }
+//
+// function formatFeature (inputFeature) {
+//   parser = require('wellknown')
+//   const parsed = parser.parse(inputFeature.the_geom)
+//   delete inputFeature.the_geom
+//   return {
+//     type: 'Feature',
+//     geometry: parsed,
+//     properties: inputFeature
+//   }
+// }
 
 module.exports = Model
