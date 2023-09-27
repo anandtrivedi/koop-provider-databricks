@@ -78,7 +78,8 @@ function translate (input) {
 
 function formatFeature (inputFeature) {
   const parser = require('wellknown')
-  const parsed = parser.parse(inputFeature.the_geom)
+  const winder = require('@mapbox/geojson-rewind')
+  const parsed = winder(parser.parse(inputFeature.the_geom))
   delete inputFeature.the_geom
   return {
     type: 'Feature',

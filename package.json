@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@databricks/sql": "^1.5.0",
+    "@mapbox/geojson-rewind": "^0.5.2",
     "config": "^3.2.5",
     "koop": "^3.17.0",
     "request": "^2.88.0",
