@@ -28,7 +28,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sllynn/koop-provider-databricks.git"
+    "url": "git+https://github.com/sllynn/koop-provider-databricks.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
