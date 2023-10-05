@@ -1,5 +1,5 @@
 {
-  "name": "koop-provider-databricks",
+  "name": "@sllynn/koop-provider",
   "version": "0.0.1",
   "description": "A Databricks provider for koop",
   "main": "src/index.js",
@@ -28,7 +28,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sllynn/koop-provider-databricks.git"
+    "url": "https://github.com/sllynn/koop-provider-databricks.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "bugs": {
     "url": "https://github.com/sllynn/koop-provider-databricks/issues"
