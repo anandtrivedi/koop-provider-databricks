@@ -7,6 +7,11 @@
 */
 
 const { DBSQLClient } = require('@databricks/sql')
+const {default: bboxPolygon} = require("@turf/bbox-polygon")
+const proj = require('@turf/projection')
+const { v4: uuidv4 } = require('uuid')
+const parser = require('wellknown')
+const winder = require('@mapbox/geojson-rewind')
 
 function Model (koop) {}
 
@@ -20,6 +25,10 @@ function Model (koop) {}
 // req.params.layer - not used, leave as '0'
 // req.params.method - should be 'query'
 Model.prototype.getData = function (req, callback) {
+  const thisTask = uuidv4()
+  console.log(`${thisTask}> Received request: ${req.url}`)
+
+
   const token = process.env.DATABRICKS_TOKEN
   const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
   const httpPath = process.env.DATABRICKS_HTTP_PATH
@@ -41,9 +50,13 @@ Model.prototype.getData = function (req, callback) {
     .then(async client => {
       const session = await client.openSession()
       const table = req.params.id
+      const h3filter = generateH3Filter(req.query)
+      const queryString = `SELECT * FROM ${table} ${h3filter}`
+
+      console.log(`${thisTask}> Querying endpoint: ${queryString}`)
 
       const queryOperation = await session.executeStatement(
-        `SELECT * FROM ${table}`,
+        queryString,
         {
           runAsync: true,
           maxRows: 10 // This option enables the direct results feature.
@@ -54,11 +67,13 @@ Model.prototype.getData = function (req, callback) {
 
       await queryOperation.close()
 
+      console.log(`${thisTask}> Received result (${result.length} rows)`)
+
       // hand off the data to Koop
       const geojson = translate(result)
       geojson.metadata = geojson.metadata || {}
       geojson.metadata.idField = 'OBJECTID'
-      geojson.metadata.name = `Databricks query against table ${table}`
+      geojson.metadata.name = table
       callback(null, geojson)
 
       await session.close()
@@ -69,6 +84,19 @@ Model.prototype.getData = function (req, callback) {
     })
 }
 
+function generateH3Filter(query) {
+  if (query.hasOwnProperty("bbox") && query.hasOwnProperty("h3col") && query.hasOwnProperty("h3res")) {
+    const stringEnvelope3857 = query.bbox.split(",")
+    const numEnvelope3857 = stringEnvelope3857.map(Number)
+    const poly3857 = bboxPolygon(numEnvelope3857).geometry
+    const poly4326 = proj.toWgs84(poly3857)
+    const polyJSON = JSON.stringify(poly4326)
+    return `WHERE array_contains(h3_coverash3('${polyJSON}', ${query.h3res}), ${query.h3col})`
+  }
+  return ""
+
+}
+
 function translate (input) {
   return {
     type: 'FeatureCollection',
@@ -77,9 +105,7 @@ function translate (input) {
 }
 
 function formatFeature (inputFeature) {
-  const parser = require('wellknown')
-  const winder = require('@mapbox/geojson-rewind')
-  const parsed = winder(parser.parse(inputFeature.the_geom))
+  const parsed = winder(parser.parse(`${inputFeature.geometry_srid};${inputFeature.the_geom}`))
   delete inputFeature.the_geom
   return {
     type: 'Feature',
