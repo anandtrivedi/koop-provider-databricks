@@ -1,6 +1,6 @@
 {
   "name": "@sllynn/koop-provider",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A Databricks provider for koop",
   "main": "src/index.js",
   "directories": {
@@ -13,6 +13,8 @@
   "dependencies": {
     "@databricks/sql": "^1.5.0",
     "@mapbox/geojson-rewind": "^0.5.2",
+    "@turf/bbox-polygon": "^6.5.0",
+    "@turf/projection": "^6.5.0",
     "config": "^3.2.5",
     "koop": "^3.17.0",
     "request": "^2.88.0",
