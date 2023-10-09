@@ -10,17 +10,17 @@ const Model = require('../src/model')
 const model = new Model()
 
 test('should properly fetch from the API and translate features', t => {
-  model.getData({ params: { id: 'geo_perf.test_geometries' } }, (err, geojson) => {
+  model.getData({ params: { id: 'stuart.geospatial.oproad_motorway_junctions' } }, (err, geojson) => {
     t.error(err)
     t.equal(geojson.type, 'FeatureCollection', 'creates a feature collection object')
     t.ok(geojson.features, 'has features')
 
     const feature = geojson.features[0]
     t.equal(feature.type, 'Feature', 'has proper type')
-    t.equal(feature.geometry.type, 'MultiPolygon', 'creates multi-polygon geometry')
-    t.deepEqual(feature.geometry.coordinates[0][0][0], [-74.18445299999996, 40.694995999999904], 'translates geometry correctly')
+    t.equal(feature.geometry.type, 'Point', 'returns point geometries')
+    t.deepEqual(feature.geometry.coordinates, [-2.6492791853702613, 54.50751433669944], 'translates geometry correctly')
     t.ok(feature.properties, 'creates attributes')
-    t.equal(feature.properties.zone, 'Newark Airport', 'extracts zone property field correctly')
+    t.equal(feature.properties.junction_number, 'M6 J39', 'extracts junction_number property field correctly')
     t.end()
   })
 })

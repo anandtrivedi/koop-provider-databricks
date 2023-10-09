@@ -7,7 +7,7 @@
 */
 
 const { DBSQLClient } = require('@databricks/sql')
-const {default: bboxPolygon} = require("@turf/bbox-polygon")
+const { default: bboxPolygon } = require('@turf/bbox-polygon')
 const proj = require('@turf/projection')
 const { v4: uuidv4 } = require('uuid')
 const parser = require('wellknown')
@@ -27,7 +27,6 @@ function Model (koop) {}
 Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   console.log(`${thisTask}> Received request: ${req.url}`)
-
 
   const token = process.env.DATABRICKS_TOKEN
   const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
@@ -84,17 +83,16 @@ Model.prototype.getData = function (req, callback) {
     })
 }
 
-function generateH3Filter(query) {
-  if (query.hasOwnProperty("bbox") && query.hasOwnProperty("h3col") && query.hasOwnProperty("h3res")) {
-    const stringEnvelope3857 = query.bbox.split(",")
+function generateH3Filter (query) {
+  if (query !== undefined && 'bbox' in query && 'h3col' in query && 'h3res' in query) {
+    const stringEnvelope3857 = query.bbox.split(',')
     const numEnvelope3857 = stringEnvelope3857.map(Number)
     const poly3857 = bboxPolygon(numEnvelope3857).geometry
     const poly4326 = proj.toWgs84(poly3857)
     const polyJSON = JSON.stringify(poly4326)
     return `WHERE array_contains(h3_coverash3('${polyJSON}', ${query.h3res}), ${query.h3col})`
   }
-  return ""
-
+  return ''
 }
 
 function translate (input) {
