@@ -20,7 +20,7 @@ test('should properly fetch from the API and translate features', t => {
     t.equal(feature.geometry.type, 'Point', 'returns point geometries')
     t.deepEqual(feature.geometry.coordinates, [-116.30138297783401, 33.67238838002538], 'translates geometry correctly')
     t.ok(feature.properties, 'creates attributes')
-    t.equal(feature.properties.zipcode, 'CA000638', 'extracts zip code property field correctly')
+    t.equal(feature.properties.ZIPCODE, 'CA000638', 'extracts zip code property field correctly')
     t.end()
   })
 })
