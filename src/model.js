@@ -20,7 +20,6 @@ const sridColumn = config.sridColumn
 const tableName = config.tableName
 console.log('Geometry column is ' + geometryColumn + '; SRID is ' + sridColumn + 'tableName is ' + tableName)
 
-
 function Model (koop) {}
 
 // Public function to return data from a Databricks SQL Endpoint
@@ -40,7 +39,6 @@ Model.prototype.getData = function (req, callback) {
   const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
   const httpPath = process.env.DATABRICKS_HTTP_PATH
 
-  
   if (!token || !serverHostname || !httpPath) {
     throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
       'Check the environment variables DATABRICKS_TOKEN, ' +
