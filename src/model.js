@@ -12,6 +12,7 @@ const proj = require('@turf/projection')
 const { v4: uuidv4 } = require('uuid')
 const parser = require('wellknown')
 const winder = require('@mapbox/geojson-rewind')
+const config = require('../config/default.json') 
 
 function Model (koop) {}
 
@@ -31,6 +32,12 @@ Model.prototype.getData = function (req, callback) {
   const token = process.env.DATABRICKS_TOKEN
   const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
   const httpPath = process.env.DATABRICKS_HTTP_PATH
+
+  const objectid = config.objectId
+  const geometryColumn = config.geometryColumn
+  const sridColumn = config.sridColumn
+  const tableName = config.tableName
+  console.log ("Geometry clumn is " + geometryColumn)
 
   if (!token || !serverHostname || !httpPath) {
     throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
@@ -71,7 +78,7 @@ Model.prototype.getData = function (req, callback) {
       // hand off the data to Koop
       const geojson = translate(result)
       geojson.metadata = geojson.metadata || {}
-      geojson.metadata.idField = 'OBJECTID'
+      geojson.metadata.idField = objectId
       geojson.metadata.name = table
       callback(null, geojson)
 
