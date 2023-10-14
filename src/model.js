@@ -110,7 +110,7 @@ function translate (input) {
 }
 
 function formatFeature (inputFeature) {
-  const parsed = winder(parser.parse(`${inputFeature.geometry_srid};${inputFeature.the_geom}`))
+  const parsed = winder(parser.parse(`${inputFeature[sridColumn]};${inputFeature[geometryColumn]}`))
   delete inputFeature.the_geom
   return {
     type: 'Feature',
