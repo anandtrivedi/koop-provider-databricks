@@ -18,6 +18,8 @@ const objectId = config.objectId
 const geometryColumn = config.geometryColumn
 const sridColumn = config.sridColumn
 const tableName = config.tableName
+const maxRows = config.maxRows
+
 console.log('Geometry column is ' + geometryColumn + '; SRID is ' + sridColumn + 'tableName is ' + tableName)
 
 function Model (koop) {}
@@ -65,7 +67,7 @@ Model.prototype.getData = function (req, callback) {
         queryString,
         {
           runAsync: true,
-          maxRows: 10 // This option enables the direct results feature.
+          maxRows: maxRows // This option enables the direct results feature.
         }
       )
 

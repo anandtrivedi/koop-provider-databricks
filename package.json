@@ -1,5 +1,5 @@
 {
-  "name": "@sllynn/koop-provider",
+  "name": "@databricks/koop-provider",
   "version": "0.0.2",
   "description": "A Databricks provider for koop",
   "main": "src/index.js",

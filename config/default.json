@@ -2,6 +2,6 @@
  "tableName" : "geoserverat.default.structures_national_gdb",
  "objectId": "objectid",
  "geometryColumn" : "the_geom",
- "sridColumn" : "geometry_srid"
-
+ "sridColumn" : "geometry_srid",
+ "maxRows" : "10"
 }
