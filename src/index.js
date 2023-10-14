@@ -6,7 +6,7 @@
   Documentation: http://koopjs.github.io/docs/usage/provider
 */
 
-require('dotenv').config();
+require('dotenv').config()
 // Define the provider path
 // /:name/:hosts?/:disableIdParam?/FeatureServer/:layer/:method
 // e.g. /example/FeatureServer/0/query
