@@ -14,6 +14,13 @@ const parser = require('wellknown')
 const winder = require('@mapbox/geojson-rewind')
 const config = require('../config/default.json')
 
+const objectId = config.objectId
+const geometryColumn = config.geometryColumn
+const sridColumn = config.sridColumn
+const tableName = config.tableName
+console.log('Geometry column is ' + geometryColumn + '; SRID is ' + sridColumn + 'tableName is ' + tableName)
+
+
 function Model (koop) {}
 
 // Public function to return data from a Databricks SQL Endpoint
@@ -33,12 +40,7 @@ Model.prototype.getData = function (req, callback) {
   const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
   const httpPath = process.env.DATABRICKS_HTTP_PATH
 
-  const objectId = config.objectId
-  const geometryColumn = config.geometryColumn
-  const sridColumn = config.sridColumn
-  const tableName = config.tableName
-  console.log('Geometry column is ' + geometryColumn + '; SRID is ' + sridColumn + 'tableName is ' + tableName)
-
+  
   if (!token || !serverHostname || !httpPath) {
     throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
       'Check the environment variables DATABRICKS_TOKEN, ' +
