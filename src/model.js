@@ -37,7 +37,7 @@ Model.prototype.getData = function (req, callback) {
   const geometryColumn = config.geometryColumn
   const sridColumn = config.sridColumn
   const tableName = config.tableName
-  console.log ("Geometry clumn is " + geometryColumn)
+  console.log('Geometry column is ' + geometryColumn)
 
   if (!token || !serverHostname || !httpPath) {
     throw new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
