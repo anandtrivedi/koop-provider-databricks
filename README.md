@@ -35,9 +35,15 @@ Full documentation is provided [here](https://koopjs.github.io/docs/usage/provid
 Run server:
 - `npm install`
 - `npm start`
+## Run on your own machine
+- set .env file. Refer to .evn.example
+- modify config\default.json to set other variables
+- npm start
+- e.g 'curl http://localhost:8080/databricks/rest/services/geoserverat.default.structures_national_gdb/FeatureServer/layers' should work 
 
 Example API Query:
 - `curl localhost:8080/example/FeatureServer/0/query?returnCountOnly=true`
+
 
 Tests:
 - `npm test`
