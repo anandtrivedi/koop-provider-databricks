@@ -59,3 +59,30 @@ During development you can output error callstack with
 - run `npm init` and update the fields
   - Choose a name like `koop-provider-foo`
 - run `npm publish`
+
+## For SSL:
+ - Install nginx (brew install nginx)
+ - Modify the server.conf (/opt/homebrew/etc/nginx/nginx.conf) to incude: 
+  server {
+    	listen 443 ssl;
+    	server_name localhost;
+        ssl_session_timeout  5m;
+
+    	ssl_certificate /opt/homebrew/etc/certs/certificate.pem;
+    	ssl_certificate_key /opt/homebrew/etc/certs/private_key_without_pass.pem;
+        
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
+
+
+    	location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    	}
+    }
+    - Modify server.conf to comment server directive listening on 8080 as we will let npm handle that. 
+    - Errors will be at tail -f /opt/homebrew/var/log/nginx 
+    - Restart nginx: brew services restart nginx            
+    - Try curl https://localhost/databricks/rest/services/geoserverat.default.structures_national_gdb/FeatureServer/layers 
