@@ -53,6 +53,27 @@ brew install cloudflare/cloudflare/cloudflared
 cloudflared tunnel --url http://localhost:8080
 ```
 
+#### Option D: Databricks Apps (Recommended for Production)
+
+If you've deployed your Koop provider to **Databricks Apps**, you already have a public URL! Databricks Apps provides a publicly accessible HTTPS URL out of the box:
+
+```
+https://<workspace-id>.cloud.databricks.com/apps/<app-id>/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0
+```
+
+**Benefits:**
+- ✅ **HTTPS by default** - No SSL configuration needed
+- ✅ **Stable URL** - Doesn't change between deployments
+- ✅ **Production-ready** - Scales automatically with your workspace
+- ✅ **No tunneling required** - Direct public access
+
+**Example:**
+```
+https://e2-demo-field-eng.cloud.databricks.com/apps/koop-provider/databricks/rest/services/main.default.cities/FeatureServer/0
+```
+
+See [DATABRICKS_DEPLOYMENT.md](./DATABRICKS_DEPLOYMENT.md) for full deployment instructions.
+
 ---
 
 ## Testing with ArcGIS Online
