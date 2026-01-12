@@ -105,11 +105,19 @@ export GEOMETRY_COLUMN="geom"
 
 **What it does:** Specifies the format of geometry data stored in the geometry column.
 
-**Supported formats:**
-- `"wkt"` - **Well-Known Text** (default) - STRING column with WKT text
-- `"wkb"` - **Well-Known Binary** - BINARY column with WKB binary data
-- `"geojson"` - **GeoJSON** - STRING column with GeoJSON text
-- `"geometry"` - **Native Databricks GEOMETRY** - GEOMETRY type column
+**Supported formats (by performance):**
+- `"geometry"` - **Native Databricks GEOMETRY** ⚡ **FASTEST** - No parsing needed, optimized binary storage
+- `"wkb"` - **Well-Known Binary** ⚡ **FAST** - Binary format, requires ST_GeomFromWKB() conversion
+- `"wkt"` - **Well-Known Text** (default) - Text format, requires ST_GeomFromText() conversion, human-readable
+- `"geojson"` - **GeoJSON** - JSON text format, requires ST_GeomFromGeoJSON() conversion, verbose
+
+**Performance Hierarchy:**
+```
+FASTEST → SLOWEST
+Native GEOMETRY > WKB > WKT > GeoJSON
+```
+
+**Default is WKT** for ease of use and compatibility, but **use native GEOMETRY for best performance** when possible.
 
 **IMPORTANT:** You don't need to convert your existing tables! Just create a VIEW with the required columns (`objectid` and your geometry column), then configure `geometryFormat` to match your data. The provider handles all format conversion automatically using Databricks ST functions.
 
@@ -149,38 +157,43 @@ export GEOMETRY_FORMAT="wkb"
 
 #### Format Details:
 
-**WKT (Well-Known Text) - Default:**
-- **Column type:** STRING
-- **Example data:** `'POINT(-122.4194 37.7749)'`
-- **Use when:** Geometry is stored as text strings
-- **Most common format** for storing spatial data in string columns
+**Native GEOMETRY - ⚡ BEST PERFORMANCE:**
+- **Column type:** GEOMETRY (Databricks native spatial type)
+- **Example data:** Created with `ST_Point(-122.4194, 37.7749)` or `ST_GeomFromText('POINT(-122.4194 37.7749)')`
+- **Use when:** Maximum performance is required
+- **Performance:** No parsing overhead, direct use with ST functions, optimized binary storage
+- **Storage:** Most compact representation
+- **Recommended for:** Large datasets, production deployments where performance matters
 
-**WKB (Well-Known Binary):**
+**WKB (Well-Known Binary) - ⚡ FAST:**
 - **Column type:** BINARY
 - **Example data:** Binary blob representing geometry (e.g., `X'0101000000000000000000F0BF0000000000000040'`)
 - **Use when:** Geometry is stored as binary data
-- **More efficient** than WKT for storage and transmission
-- **Imported from systems** that use WKB (PostGIS, other spatial databases)
+- **Performance:** Fast - requires ST_GeomFromWKB() conversion once per query
+- **Storage:** Compact binary format, more efficient than text
+- **Common use cases:**
+  - Migrating from PostGIS (stores geometries as WKB by default)
+  - Loading data from binary geospatial file formats (Shapefiles, GeoPackage)
+  - High-performance applications where binary is more efficient than text
+  - Systems that already generate WKB output
 
-**Common WKB Use Cases:**
-- Migrating from PostGIS (stores geometries as WKB by default)
-- Loading data from binary geospatial file formats (Shapefiles, GeoPackage)
-- High-performance applications where binary is more efficient than text
-- Systems that already generate WKB output
+**WKT (Well-Known Text) - Default:**
+- **Column type:** STRING
+- **Example data:** `'POINT(-122.4194 37.7749)'`
+- **Use when:** Geometry is stored as text strings, ease of use and compatibility
+- **Performance:** Moderate - requires ST_GeomFromText() conversion and text parsing
+- **Storage:** Human-readable text format, larger than binary formats
+- **Why default:** Most common format, easy to create and debug, widely compatible
+- **Recommended for:** Getting started, debugging, data from external sources
 
 **GeoJSON:**
 - **Column type:** STRING
 - **Example data:** `'{"type":"Point","coordinates":[-122.4194,37.7749]}'`
 - **Use when:** Geometry is stored as GeoJSON text
+- **Performance:** Moderate - requires ST_GeomFromGeoJSON() conversion and JSON parsing
+- **Storage:** Most verbose format (JSON text), largest storage footprint
 - **Common format** for web applications and JavaScript
 - **Widely used** in modern mapping libraries and APIs
-
-**GEOMETRY (Native Databricks Type):**
-- **Column type:** GEOMETRY
-- **Example data:** Native Databricks geometry object
-- **Use when:** Using Databricks' native spatial types
-- **Most efficient** - no conversion needed
-- **Created using** ST_GeomFromText(), ST_Point(), etc.
 
 #### Example Table Schemas:
 
