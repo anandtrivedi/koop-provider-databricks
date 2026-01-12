@@ -308,14 +308,15 @@ NODE_ENV=test npm start
 
 Your Databricks table must have:
 
-1. **Geometry Column**: Spatial geometry data in a format supported by Databricks ST functions
-   - Supports: GEOMETRY type, WKT strings, or GeoJSON
-   - Example: `ST_GeomFromText('POINT(-122.4194 37.7749)', 4326)`
-   - The column name should be specified in `config/default.json` (default: `geometry`)
+1. **Geometry Column**: STRING column containing WKT (Well-Known Text) format
+   - Must be a STRING type containing valid WKT geometry
+   - Supports: POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON
+   - Example: `'POINT(-122.4194 37.7749)'`
+   - The column name should be specified in `config/default.json` (default: `geometry_wkt`)
 
 2. **Object ID Column**: Unique identifier for each feature
    - Must be unique and non-null
-   - Typically an integer or bigint column
+   - Must be an integer type (INT, BIGINT)
    - The column name should be specified in `config/default.json` (default: `objectid`)
 
 3. **(Optional) H3 Column**: For H3 spatial indexing on large datasets
@@ -323,12 +324,32 @@ Your Databricks table must have:
    - Improves performance for spatial queries at scale
    - Use with `h3col` and `h3res` query parameters
 
+### Supported Geometry Types
+
+All WKT geometry types are automatically detected and converted:
+
+```sql
+-- Points (cities, markers, facilities)
+'POINT(-122.4194 37.7749)'
+
+-- LineStrings (roads, rivers, routes)
+'LINESTRING(-122.4 37.8, -122.3 37.7, -122.2 37.6)'
+
+-- Polygons (states, parcels, zones)
+'POLYGON((-122.5 37.8, -122.3 37.8, -122.3 37.6, -122.5 37.6, -122.5 37.8))'
+
+-- Multi-geometries also supported
+'MULTIPOINT(-122.4 37.7, -122.3 37.6)'
+'MULTILINESTRING((-122.4 37.8, -122.3 37.7), (-122.2 37.6, -122.1 37.5))'
+'MULTIPOLYGON(((-122.5 37.8, -122.3 37.8, -122.3 37.6, -122.5 37.6, -122.5 37.8)))'
+```
+
 ### Databricks ST Functions Used
 
 This provider leverages Databricks SQL's native geospatial functions for optimal performance:
 
-- **ST_AsGeoJSON()**: Converts geometry to GeoJSON format directly in the database
-- **ST_GeomFromText()**: Parses WKT geometry strings
+- **ST_AsGeoJSON()**: Converts WKT geometry to GeoJSON format directly in the database
+- **ST_GeomFromText()**: Validates and parses WKT geometry strings for spatial operations
 - **ST_Intersects()**: Spatial intersection testing for bbox queries
 - **h3_coverash3()**: H3 spatial indexing for large-scale queries
 
@@ -339,17 +360,34 @@ CREATE TABLE catalog.schema.cities (
   objectid BIGINT,
   city_name STRING,
   population INT,
-  geometry GEOMETRY,
-  h3_index STRING  -- Optional: for H3 indexing
+  geometry_wkt STRING,  -- WKT geometry as string
+  h3_index STRING       -- Optional: for H3 indexing
 )
 USING DELTA
 LOCATION 's3://your-bucket/cities';
 
--- Insert data with geometry
+-- Insert data with WKT geometry strings
 INSERT INTO catalog.schema.cities VALUES
-  (1, 'San Francisco', 874961,
-   ST_GeomFromText('POINT(-122.4194 37.7749)', 4326),
-   h3_latlongash3(37.7749, -122.4194, 7));
+  (1, 'San Francisco', 874961, 'POINT(-122.4194 37.7749)', h3_latlongash3(37.7749, -122.4194, 7)),
+  (2, 'Los Angeles', 3979576, 'POINT(-118.2437 34.0522)', h3_latlongash3(34.0522, -118.2437, 7)),
+  (3, 'New York', 8336817, 'POINT(-74.0060 40.7128)', h3_latlongash3(40.7128, -74.0060, 7));
+```
+
+### If You Have Native GEOMETRY Columns
+
+If your existing tables use Databricks native GEOMETRY type, create a view to convert to WKT strings:
+
+```sql
+CREATE VIEW catalog.schema.cities_koop AS
+SELECT
+  objectid,
+  city_name,
+  population,
+  ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
+  h3_index
+FROM catalog.schema.cities_with_geometry;
+
+-- Now access via: /databricks/rest/services/catalog.schema.cities_koop/FeatureServer/0
 ```
 
 ## Common Pitfalls for Beginners
