@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koop Databricks Provider - Demo Portal</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      padding: 40px 20px;
+    }
+
+    .header h1 {
+      font-size: 42px;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 18px;
+      opacity: 0.95;
+      margin-top: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+
+    .content {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      margin-top: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section h2 {
+      color: #667eea;
+      font-size: 28px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 30px;
+      border-radius: 10px;
+      color: white;
+      text-decoration: none;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    .card h3 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.95;
+    }
+
+    .api-section {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .api-section h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+
+    .endpoint {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      border: 1px solid #dee2e6;
+    }
+
+    .endpoint strong {
+      color: #667eea;
+      display: block;
+      margin-bottom: 5px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .feature {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #28a745;
+    }
+
+    .feature h4 {
+      color: #28a745;
+      margin-bottom: 10px;
+    }
+
+    .feature p {
+      font-size: 14px;
+      color: #6c757d;
+      line-height: 1.5;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      padding: 30px;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    code {
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+      color: #e83e8c;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🗺️ Koop Databricks Provider</h1>
+      <p>Turn your Databricks tables into ArcGIS FeatureServer layers</p>
+      <div class="badge">Production Ready • Enterprise Scale • ArcGIS Compatible</div>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <h2>🎨 Interactive Demos</h2>
+        <div class="cards">
+          <a href="/multi-layer-map.html" class="card">
+            <h3>📊 Multi-Layer Map</h3>
+            <p>Explore multiple geometry types on one map: cities (points), highways (lines), states (polygons), and national parks. Perfect for understanding how different feature types work together.</p>
+            <p style="margin-top: 10px; font-weight: bold;">✨ 70 features across 4 layers</p>
+          </a>
+
+          <a href="/large-dataset-map.html" class="card">
+            <h3>⚡ Large Dataset Demo</h3>
+            <p>See pagination in action with 10,000 business locations. Watch live stats as the map automatically pages through data while you zoom and pan.</p>
+            <p style="margin-top: 10px; font-weight: bold;">📈 10,000 records with real-time pagination</p>
+          </a>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🔌 API Endpoints</h2>
+        <div class="api-section">
+          <h3>FeatureServer REST API</h3>
+          <p style="margin-bottom: 15px; color: #6c757d;">These endpoints are compatible with all ArcGIS clients (Pro, Online, JavaScript API, Runtime SDKs)</p>
+
+          <div class="endpoint">
+            <strong>Service Info</strong>
+            <a href="/databricks/rest/info" target="_blank">/databricks/rest/info</a>
+          </div>
+
+          <div class="endpoint">
+            <strong>Feature Layer Template</strong>
+            /databricks/rest/services/{catalog}.{schema}.{table}/FeatureServer/0
+          </div>
+
+          <div class="endpoint">
+            <strong>Example: Cities Layer</strong>
+            <a href="/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0?f=json" target="_blank">/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0</a>
+          </div>
+
+          <div class="endpoint">
+            <strong>Example: Large Dataset</strong>
+            <a href="/databricks/rest/services/main.default.koop_large_dataset/FeatureServer/0?f=json" target="_blank">/databricks/rest/services/main.default.koop_large_dataset/FeatureServer/0</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>✨ Key Features</h2>
+        <div class="features">
+          <div class="feature">
+            <h4>✅ Enterprise Scale</h4>
+            <p>Handles millions of records with efficient pagination. Tested with 10K+ records, scales to production workloads.</p>
+          </div>
+
+          <div class="feature">
+            <h4>✅ Multiple Geometries</h4>
+            <p>Supports Points, LineStrings, and Polygons. Automatic WKT to GeoJSON conversion.</p>
+          </div>
+
+          <div class="feature">
+            <h4>✅ Smart Pagination</h4>
+            <p>Automatic <code>resultOffset</code> and <code>resultRecordCount</code> handling for optimal performance.</p>
+          </div>
+
+          <div class="feature">
+            <h4>✅ ArcGIS Compatible</h4>
+            <p>Works seamlessly with ArcGIS Pro, ArcGIS Online, JavaScript API, and mobile SDKs.</p>
+          </div>
+
+          <div class="feature">
+            <h4>✅ Query Support</h4>
+            <p>WHERE clauses, spatial filters, field selection, sorting, and count queries.</p>
+          </div>
+
+          <div class="feature">
+            <h4>✅ Production Ready</h4>
+            <p>Structured logging, error handling, Docker support, and Databricks Apps deployment.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🚀 Using This in Production</h2>
+        <div class="api-section">
+          <h3>Two Deployment Options</h3>
+          <p style="color: #6c757d; margin-bottom: 20px;">This demo shows both the REST API and optional web interface. Choose what fits your needs:</p>
+
+          <div style="margin: 20px 0;">
+            <h4 style="color: #667eea; margin-bottom: 10px;">Option A: API Only (Recommended for most users)</h4>
+            <p style="color: #6c757d; margin-bottom: 10px;">Deploy just the FeatureServer REST API. Your users consume it via their own ArcGIS tools.</p>
+            <pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">
+# Deploy without demo pages
+export SERVE_DEMO_PAGES=false
+npm start
+            </pre>
+          </div>
+
+          <div style="margin: 20px 0;">
+            <h4 style="color: #667eea; margin-bottom: 10px;">Option B: Full Solution (What you're seeing now)</h4>
+            <p style="color: #6c757d; margin-bottom: 10px;">Deploy the API plus these demo web pages. Great for showcasing capabilities.</p>
+            <pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">
+# Deploy with demo pages
+export SERVE_DEMO_PAGES=true
+npm start
+            </pre>
+          </div>
+
+          <p style="color: #6c757d; margin-top: 20px; font-size: 14px;">
+            💡 <strong>Note:</strong> Most production deployments use Option A. The demo pages are just examples showing how clients would consume your API.
+          </p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>📚 Documentation</h2>
+        <div style="display: grid; gap: 10px;">
+          <a href="https://github.com/koopjs/koop" target="_blank" style="color: #667eea; text-decoration: none; padding: 10px; background: #f8f9fa; border-radius: 6px; display: block;">
+            📖 Koop Documentation →
+          </a>
+          <a href="https://developers.arcgis.com/rest/services-reference/enterprise/feature-service.htm" target="_blank" style="color: #667eea; text-decoration: none; padding: 10px; background: #f8f9fa; border-radius: 6px; display: block;">
+            📖 ArcGIS FeatureServer API Reference →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Koop Databricks Provider • Built with Koop Framework</p>
+      <p style="margin-top: 10px; font-size: 12px;">Serving Databricks geospatial data to the ArcGIS ecosystem</p>
+    </div>
+  </div>
+</body>
+</html>
