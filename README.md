@@ -2,11 +2,26 @@
 
 A [Koop](https://koopjs.github.io/) provider that connects to Databricks SQL endpoints and serves geospatial data as GeoJSON through ArcGIS FeatureServer APIs.
 
+## What's New in v0.2 🎉
+
+Major improvements bringing the provider up to date with modern Koop standards:
+
+✅ **Upgraded to @koopjs/koop-core@10.4.17** - Latest Koop framework (from 3.17.0)
+✅ **Multi-Format Geometry Support** - WKT, WKB, GeoJSON, and native GEOMETRY types
+✅ **Automatic Geometry Type Detection** - Proper Esri geometry type metadata
+✅ **Complete Field Metadata** - DESCRIBE TABLE integration with type mapping
+✅ **returnExtentOnly Support** - Fast bounding box queries without fetching features
+✅ **Time Filtering** - Temporal queries with `time` and `timeField` parameters
+✅ **Metadata Caching** - In-memory caching for improved performance
+
+See [CHANGELOG.md](./CHANGELOG.md) for detailed release notes.
+
 ## Overview
 
 This provider enables you to:
 - Connect to Databricks SQL warehouses and query geospatial tables
 - Expose Databricks data as ArcGIS FeatureServer endpoints
+- Support multiple geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)
 - Support H3 spatial filtering for optimized geospatial queries
 - Serve data in GeoJSON format compatible with ArcGIS clients
 
@@ -102,6 +117,7 @@ You should see 10 US cities as GeoJSON features!
    {
      "objectId": "objectid",
      "geometryColumn": "geometry_wkt",
+     "geometryFormat": "wkt",
      "spatialReference": 4326,
      "maxRows": 10000
    }
@@ -109,7 +125,8 @@ You should see 10 US cities as GeoJSON features!
 
    Configuration options:
    - `objectId`: Name of the unique identifier column (default: `objectid`)
-   - `geometryColumn`: Name of the WKT geometry column (default: `geometry_wkt`)
+   - `geometryColumn`: Name of the geometry column (default: `geometry_wkt`)
+   - `geometryFormat`: Geometry data format - `"wkt"`, `"wkb"`, `"geojson"`, or `"geometry"` (default: `"wkt"`)
    - `spatialReference`: SRID/WKID for spatial reference (default: `4326` for WGS84)
    - `maxRows`: Maximum number of rows to return per query (default: `10000`)
 

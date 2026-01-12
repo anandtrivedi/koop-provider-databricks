@@ -13,6 +13,55 @@ This release represents a complete rewrite of the data layer to leverage Databri
 
 ### Added
 
+#### Modern Koop Framework
+- **Upgraded to @koopjs/koop-core@10.4.17** (from koop@3.17.0)
+  - Latest Koop framework with 7 years of improvements
+  - Backward compatible - no breaking changes
+  - Modern ESM support and better error handling
+
+#### Multi-Format Geometry Support
+- **geometryFormat configuration**: Support for multiple geometry data formats
+  - `"wkt"`: Well-Known Text (STRING column) - default
+  - `"wkb"`: Well-Known Binary (BINARY column) - for PostGIS migrations
+  - `"geojson"`: GeoJSON text (STRING column) - for web applications
+  - `"geometry"`: Native Databricks GEOMETRY type - most efficient
+- **Automatic format conversion** using appropriate ST functions:
+  - ST_GeomFromText() for WKT
+  - ST_GeomFromWKB() for WKB
+  - ST_GeomFromGeoJSON() for GeoJSON
+  - Direct column reference for native GEOMETRY type
+
+#### Enhanced ArcGIS Compatibility
+- **Automatic geometry type detection**:
+  - Detects Point, LineString, Polygon, Multi* types
+  - Maps to proper Esri types (esriGeometryPoint, esriGeometryPolyline, esriGeometryPolygon)
+  - Populates metadata.geometryType for ArcGIS clients
+- **Complete field metadata from DESCRIBE TABLE**:
+  - Automatic schema introspection with caching
+  - Maps Databricks types to Esri field types
+  - Includes sqlType, alias, nullable, editable properties
+  - Cached per-table to avoid repeated DESCRIBE queries
+
+#### New Query Capabilities
+- **returnExtentOnly support**: Fast bounding box queries
+  - Uses ST_Envelope() and aggregate functions
+  - Returns extent without fetching features
+  - Optimizes initial map load performance
+- **Time filtering support**:
+  - `time` parameter for temporal queries (milliseconds since epoch)
+  - `timeField` parameter to specify date/time column
+  - Supports single timestamp or time range
+  - Automatic conversion to Databricks TIMESTAMP format
+- **returnCountOnly and returnIdsOnly**: Already supported, now documented
+  - Efficient count queries without fetching data
+  - ID-only queries for pagination tracking
+
+#### Performance Optimizations
+- **Metadata caching**: In-memory cache for DESCRIBE TABLE results
+  - Prevents repeated expensive schema queries
+  - Significant performance improvement for repeated requests
+  - Per-table caching with fieldsCache
+
 #### Databricks ST Functions Integration
 - **ST_AsGeoJSON()**: Geometry conversion now happens in Databricks, not Node.js
   - Eliminates client-side WKT parsing
@@ -23,6 +72,9 @@ This release represents a complete rewrite of the data layer to leverage Databri
   - Supports standard Koop geometry parameters
   - Much faster than client-side filtering
 - **ST_GeomFromText()**: Native geometry construction for spatial predicates
+- **ST_GeomFromWKB()**: Binary geometry parsing (new in v0.2)
+- **ST_GeomFromGeoJSON()**: GeoJSON parsing (new in v0.2)
+- **ST_Envelope()**: Bounding box extraction for returnExtentOnly
 
 #### Standard Koop Query Parameters
 - `where`: SQL WHERE clause for attribute filtering

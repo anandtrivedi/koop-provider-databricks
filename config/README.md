@@ -98,21 +98,116 @@ export OBJECT_ID_COLUMN="feature_id"
 export GEOMETRY_COLUMN="geom"
 ```
 
-**Important Note:**
-This provider expects **STRING columns with WKT text**, not native Databricks GEOMETRY type. If your table has a GEOMETRY column, create a view that converts it:
+---
 
+### 3. `geometryFormat` (default: `"wkt"`)
+
+**What it does:** Specifies the format of geometry data stored in the geometry column.
+
+**Supported formats (by performance):**
+- `"geometry"` - **Native Databricks GEOMETRY** ⚡ **FASTEST** - No parsing needed, optimized binary storage
+- `"wkb"` - **Well-Known Binary** ⚡ **FAST** - Binary format, requires ST_GeomFromWKB() conversion
+- `"wkt"` - **Well-Known Text** (default) - Text format, requires ST_GeomFromText() conversion, human-readable
+- `"geojson"` - **GeoJSON** - JSON text format, requires ST_GeomFromGeoJSON() conversion, verbose
+
+**Performance Hierarchy:**
+```
+FASTEST → SLOWEST
+Native GEOMETRY > WKB > WKT > GeoJSON
+```
+
+**Default is WKT** for ease of use and compatibility, but **use native GEOMETRY for best performance** when possible.
+
+**IMPORTANT:** You don't need to convert your existing tables! Just create a VIEW with the required columns (`objectid` and your geometry column), then configure `geometryFormat` to match your data. The provider handles all format conversion automatically using Databricks ST functions.
+
+**When to change:**
+- Your table uses WKB binary format instead of WKT text
+- Your table has GeoJSON strings stored as text
+- Your table has native Databricks GEOMETRY type columns
+
+**Examples:**
+
+```json
+// For WKT text format (default - most common)
+{
+  "geometryFormat": "wkt"
+}
+
+// For WKB binary format
+{
+  "geometryFormat": "wkb"
+}
+
+// For GeoJSON string format
+{
+  "geometryFormat": "geojson"
+}
+
+// For native Databricks GEOMETRY type
+{
+  "geometryFormat": "geometry"
+}
+```
+
+**Can also be set via environment variable:**
+```bash
+export GEOMETRY_FORMAT="wkb"
+```
+
+#### Format Details:
+
+**Native GEOMETRY - ⚡ BEST PERFORMANCE:**
+- **Column type:** GEOMETRY (Databricks native spatial type)
+- **Example data:** Created with `ST_Point(-122.4194, 37.7749)` or `ST_GeomFromText('POINT(-122.4194 37.7749)')`
+- **Use when:** Maximum performance is required
+- **Performance:** No parsing overhead, direct use with ST functions, optimized binary storage
+- **Storage:** Most compact representation
+- **Recommended for:** Large datasets, production deployments where performance matters
+
+**WKB (Well-Known Binary) - ⚡ FAST:**
+- **Column type:** BINARY
+- **Example data:** Binary blob representing geometry (e.g., `X'0101000000000000000000F0BF0000000000000040'`)
+- **Use when:** Geometry is stored as binary data
+- **Performance:** Fast - requires ST_GeomFromWKB() conversion once per query
+- **Storage:** Compact binary format, more efficient than text
+- **Common use cases:**
+  - Migrating from PostGIS (stores geometries as WKB by default)
+  - Loading data from binary geospatial file formats (Shapefiles, GeoPackage)
+  - High-performance applications where binary is more efficient than text
+  - Systems that already generate WKB output
+
+**WKT (Well-Known Text) - Default:**
+- **Column type:** STRING
+- **Example data:** `'POINT(-122.4194 37.7749)'`
+- **Use when:** Geometry is stored as text strings, ease of use and compatibility
+- **Performance:** Moderate - requires ST_GeomFromText() conversion and text parsing
+- **Storage:** Human-readable text format, larger than binary formats
+- **Why default:** Most common format, easy to create and debug, widely compatible
+- **Recommended for:** Getting started, debugging, data from external sources
+
+**GeoJSON:**
+- **Column type:** STRING
+- **Example data:** `'{"type":"Point","coordinates":[-122.4194,37.7749]}'`
+- **Use when:** Geometry is stored as GeoJSON text
+- **Performance:** Moderate - requires ST_GeomFromGeoJSON() conversion and JSON parsing
+- **Storage:** Most verbose format (JSON text), largest storage footprint
+- **Common format** for web applications and JavaScript
+- **Widely used** in modern mapping libraries and APIs
+
+#### Example Table Schemas:
+
+**WKT Format (default):**
 ```sql
-CREATE VIEW my_table_koop AS
-SELECT
-  objectid,
-  ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
-  *
-FROM my_table_with_geometry
+CREATE TABLE my_cities_wkt (
+  objectid INT,
+  city_name STRING,
+  geometry_wkt STRING  -- 'POINT(-122.4194 37.7749)'
+)
 ```
 
 ---
 
-### 3. `spatialReference` (default: `4326`)
+### 4. `spatialReference` (default: `4326`)
 
 **What it does:** Specifies the Spatial Reference System Identifier (SRID) / Well-Known ID (WKID) for the coordinate system used in your geometries.
 
