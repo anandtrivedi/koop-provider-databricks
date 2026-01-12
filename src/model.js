@@ -11,12 +11,13 @@ const { v4: uuidv4 } = require('uuid')
 const config = require('../config/default.json')
 const logger = require('./logger')
 
-const objectId = config.objectId || 'objectid'
-const geometryColumn = config.geometryColumn || 'geometry'
-const spatialReference = config.spatialReference || 4326
-const maxRows = parseInt(config.maxRows) || 10000
+const objectId = config.objectId || process.env.OBJECT_ID_COLUMN || 'objectid'
+const geometryColumn = config.geometryColumn || process.env.GEOMETRY_COLUMN || 'geometry'
+const geometryFormat = (config.geometryFormat || process.env.GEOMETRY_FORMAT || 'wkt').toLowerCase()
+const spatialReference = config.spatialReference || parseInt(process.env.SPATIAL_REFERENCE) || 4326
+const maxRows = parseInt(config.maxRows) || parseInt(process.env.MAX_ROWS) || 10000
 
-logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
+logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, geometryFormat=${geometryFormat}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
 
 function Model (koop) {}
 
@@ -183,6 +184,28 @@ function isValidTableName (tableName) {
   return /^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+){1,2}$/.test(tableName)
 }
 
+// Build geometry expression based on format (WKT, WKB, GeoJSON, or native GEOMETRY)
+function buildGeometryExpression () {
+  switch (geometryFormat) {
+    case 'wkb':
+      // Well-Known Binary format - use ST_GeomFromWKB
+      return `ST_GeomFromWKB(${geometryColumn})`
+
+    case 'geojson':
+      // GeoJSON string format - use ST_GeomFromGeoJSON
+      return `ST_GeomFromGeoJSON(${geometryColumn})`
+
+    case 'geometry':
+      // Native Databricks GEOMETRY type - use directly
+      return geometryColumn
+
+    case 'wkt':
+    default:
+      // Well-Known Text format (default) - use ST_GeomFromText
+      return `ST_GeomFromText(${geometryColumn}, ${spatialReference})`
+  }
+}
+
 // Build count query (for returnCountOnly)
 function buildCountQuery (table, query) {
   // Build WHERE clause (same as regular query)
@@ -332,9 +355,10 @@ function buildSelectClause (outFields, returnGeometry) {
 
   if (returnGeometry) {
     // Use ST_AsGeoJSON to convert geometry to GeoJSON in the database
-    // This is much more efficient than parsing WKT on the client
-    // Wrap WKT string column in ST_GeomFromText for Databricks
-    return `${fields}, ST_AsGeoJSON(ST_GeomFromText(${geometryColumn}, ${spatialReference})) as __geojson__`
+    // This is much more efficient than parsing geometry on the client
+    // Supports WKT, WKB, and native GEOMETRY types
+    const geomExpr = buildGeometryExpression()
+    return `${fields}, ST_AsGeoJSON(${geomExpr}) as __geojson__`
   }
 
   return fields
@@ -358,8 +382,9 @@ function buildBboxFilter (geometryString, geometryType) {
     const wkt = `POLYGON((${xmin} ${ymin}, ${xmax} ${ymin}, ${xmax} ${ymax}, ${xmin} ${ymax}, ${xmin} ${ymin}))`
 
     // Use ST_Intersects for bbox filtering
-    // Wrap WKT string column in ST_GeomFromText for Databricks
-    return `ST_Intersects(ST_GeomFromText(${geometryColumn}, ${spatialReference}), ST_GeomFromText('${wkt}', ${spatialReference}))`
+    // Supports WKT, WKB, and native GEOMETRY types
+    const geomExpr = buildGeometryExpression()
+    return `ST_Intersects(${geomExpr}, ST_GeomFromText('${wkt}', ${spatialReference}))`
   } catch (error) {
     logger.error('Error building bbox filter:', error)
     return null
@@ -394,8 +419,9 @@ function buildH3Filter (query) {
     const wkt = `POLYGON((${xmin} ${ymin}, ${xmax} ${ymin}, ${xmax} ${ymax}, ${xmin} ${ymax}, ${xmin} ${ymin}))`
 
     // Use h3_coverash3 function for H3-based spatial indexing
-    // Note: h3_coverash3 takes a geometry argument, so we use ST_GeomFromText on the WKT column
-    return `array_contains(h3_coverash3(ST_GeomFromText(${geometryColumn}, ${spatialReference}), ${h3res}), ${query.h3col})`
+    // Supports WKT, WKB, and native GEOMETRY types
+    const geomExpr = buildGeometryExpression()
+    return `array_contains(h3_coverash3(${geomExpr}, ${h3res}), ${query.h3col})`
   } catch (error) {
     logger.error('Error generating H3 filter:', error)
     throw error
