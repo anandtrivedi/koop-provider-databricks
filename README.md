@@ -14,9 +14,11 @@ This provider enables you to:
 
 ### Core Guides
 
-- **[Table Requirements](./TABLE_REQUIREMENTS.md)** - How to prepare your Databricks tables (objectid, geometry_wkt, WKT format)
-- **[Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Deploy on Databricks Apps, standalone, or Model Serving
-- **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Test with ArcGIS Online, Pro, and JavaScript API
+- **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Everything from table preparation to deployment and testing
+  - Part 1: Preparing your tables (objectid, geometry_wkt, WKT format)
+  - Part 2: Deployment options (Databricks Apps, standalone, Model Serving)
+  - Part 3: Testing and ArcGIS integration
+- **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Detailed testing guide for ArcGIS Online, Pro, and JavaScript API
 
 ### External Resources
 
@@ -71,7 +73,7 @@ This provider enables you to:
    - `spatialReference`: SRID/WKID for spatial reference (default: `4326` for WGS84)
    - `maxRows`: Maximum number of rows to return per query (default: `10000`)
 
-   **📖 See [TABLE_REQUIREMENTS.md](./TABLE_REQUIREMENTS.md) for detailed guidance on preparing your tables**
+   **📖 See [DATABRICKS_DEPLOYMENT.md - Configuration Options](./DATABRICKS_DEPLOYMENT.md#configuration-options) for detailed guidance**
 
 3. Set the log level (optional):
    ```bash
@@ -104,7 +106,7 @@ SELECT
 FROM my_existing_cities
 ```
 
-**📖 For complete table preparation guide, see [TABLE_REQUIREMENTS.md](./TABLE_REQUIREMENTS.md)**
+**📖 For complete table preparation guide, see [DATABRICKS_DEPLOYMENT.md - Part 1: Table Preparation](./DATABRICKS_DEPLOYMENT.md#1-preparing-your-tables)**
 
 ### Running the Server
 
