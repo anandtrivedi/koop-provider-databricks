@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "koop serve",
-    "test": "standard && tape test/*.js | tap-spec"
+    "test": "standard && tape test/*.js | tap-spec",
+    "create-test-data": "node examples/testing/create-test-table.js"
   },
   "dependencies": {
     "@databricks/sql": "^1.5.0",
