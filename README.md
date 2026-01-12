@@ -48,6 +48,46 @@ This provider enables you to:
    npm install
    ```
 
+## Quick Start
+
+Get up and running in 3 steps:
+
+### 1. Create Test Data
+
+Run the example script to create a sample table with 10 US cities:
+
+```bash
+npm run create-test-data
+```
+
+This creates: `main.default.koop_test_cities` with:
+- `objectid` (BIGINT) - Unique ID for each city
+- `city_name`, `population`, `state` (STRING/INT) - City attributes
+- `geometry_wkt` (STRING) - WKT geometry: `'POINT(-122.4194 37.7749)'`
+- `srid` (INT) - Spatial reference ID (4326 for WGS84)
+
+### 2. Start the Server
+
+```bash
+npm start
+```
+
+Server starts on `http://localhost:8080`
+
+### 3. Test in Browser
+
+Open this URL to see your test data as GeoJSON:
+
+```
+http://localhost:8080/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0/query?where=1=1&f=geojson
+```
+
+You should see 10 US cities as GeoJSON features!
+
+**🎉 Success!** You now have a working Koop provider serving Databricks data as ArcGIS FeatureServer.
+
+---
+
 ### Configuration
 
 1. Create a `.env` file in the root directory (see `.env.example` for template):
@@ -61,7 +101,7 @@ This provider enables you to:
    ```json
    {
      "objectId": "objectid",
-     "geometryColumn": "geometry",
+     "geometryColumn": "geometry_wkt",
      "spatialReference": 4326,
      "maxRows": 10000
    }
@@ -69,11 +109,11 @@ This provider enables you to:
 
    Configuration options:
    - `objectId`: Name of the unique identifier column (default: `objectid`)
-   - `geometryColumn`: Name of the geometry column (default: `geometry`)
+   - `geometryColumn`: Name of the WKT geometry column (default: `geometry_wkt`)
    - `spatialReference`: SRID/WKID for spatial reference (default: `4326` for WGS84)
    - `maxRows`: Maximum number of rows to return per query (default: `10000`)
 
-   **📖 See [DATABRICKS_DEPLOYMENT.md - Configuration Options](./DATABRICKS_DEPLOYMENT.md#configuration-options) for detailed guidance**
+   **📖 See [config/README.md](./config/README.md) for detailed configuration guide with examples**
 
 3. Set the log level (optional):
    ```bash
@@ -311,6 +351,231 @@ INSERT INTO catalog.schema.cities VALUES
    ST_GeomFromText('POINT(-122.4194 37.7749)', 4326),
    h3_latlongash3(37.7749, -122.4194, 7));
 ```
+
+## Common Pitfalls for Beginners
+
+Watch out for these common mistakes when getting started:
+
+### ❌ Pitfall 1: Column Name Mismatch
+
+**Problem:** Layer fails to load with "Column not found" error
+
+**Cause:** The `config/default.json` specifies column names that don't match your actual table
+
+**Example of the problem:**
+```json
+// Config says:
+{
+  "objectId": "objectid",
+  "geometryColumn": "geometry_wkt"
+}
+
+// But your table has:
+CREATE TABLE my_table (
+  id INT,              -- ❌ Named 'id' not 'objectid'
+  geom STRING         -- ❌ Named 'geom' not 'geometry_wkt'
+)
+```
+
+**Solution:**
+Update your config to match your table's actual column names (case-sensitive!):
+```json
+{
+  "objectId": "id",
+  "geometryColumn": "geom"
+}
+```
+
+Or create a view with the expected column names:
+```sql
+CREATE VIEW my_table_koop AS
+SELECT
+  id as objectid,
+  geom as geometry_wkt,
+  *
+FROM my_table
+```
+
+---
+
+### ❌ Pitfall 2: WKT vs GEOMETRY Type Confusion
+
+**Problem:** Not sure whether to use STRING or GEOMETRY column type
+
+**Answer:** This provider expects **STRING columns with WKT text**, not native Databricks GEOMETRY type.
+
+**Correct (WKT String):**
+```sql
+CREATE TABLE my_cities (
+  objectid INT,
+  city_name STRING,
+  geometry_wkt STRING  -- ✅ String with WKT text
+)
+
+INSERT INTO my_cities VALUES
+  (1, 'San Francisco', 'POINT(-122.4194 37.7749)')  -- ✅ WKT string
+```
+
+**Incorrect (Native GEOMETRY):**
+```sql
+CREATE TABLE my_cities (
+  objectid INT,
+  city_name STRING,
+  geometry GEOMETRY    -- ❌ Native Databricks GEOMETRY type (not supported directly)
+)
+```
+
+**If you have GEOMETRY columns:** Create a view that converts to WKT strings:
+```sql
+CREATE VIEW my_cities_koop AS
+SELECT
+  objectid,
+  ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
+  *
+FROM my_cities
+```
+
+---
+
+### ❌ Pitfall 3: Lat/Lon Order Reversed
+
+**Problem:** Features appear in the wrong location on the map (ocean instead of land, wrong continent, etc.)
+
+**Cause:** WKT uses `(longitude, latitude)` order, NOT `(latitude, longitude)`
+
+**Wrong:**
+```sql
+-- ❌ WRONG: This is (latitude, longitude)
+INSERT INTO cities VALUES (1, 'San Francisco', 'POINT(37.7749 -122.4194)')
+-- This would place the city in the Atlantic Ocean!
+```
+
+**Correct:**
+```sql
+-- ✅ RIGHT: This is (longitude, latitude)
+INSERT INTO cities VALUES (1, 'San Francisco', 'POINT(-122.4194 37.7749)')
+```
+
+**When converting from lat/lon columns:**
+```sql
+-- ✅ Longitude first, then latitude
+CONCAT('POINT(', longitude, ' ', latitude, ')')
+
+-- ❌ NOT this
+CONCAT('POINT(', latitude, ' ', longitude, ')')
+```
+
+**Remember:** WKT is `(X Y)` = `(longitude latitude)`, not `(Y X)`
+
+---
+
+### ❌ Pitfall 4: Missing or NULL ObjectIDs
+
+**Problem:** Layer loads but features are missing or duplicated
+
+**Cause:** ObjectID column has NULL values or duplicates
+
+**Requirements:**
+- ObjectID must be an INTEGER type
+- Must be UNIQUE for each row
+- Must NOT be NULL
+- Should be sequential (1, 2, 3, ...) for best performance
+
+**Check for problems:**
+```sql
+-- Check for NULLs
+SELECT COUNT(*) FROM my_table WHERE objectid IS NULL
+
+-- Check for duplicates
+SELECT objectid, COUNT(*) FROM my_table
+GROUP BY objectid
+HAVING COUNT(*) > 1
+```
+
+**Fix with ROW_NUMBER():**
+```sql
+CREATE VIEW my_table_fixed AS
+SELECT
+  ROW_NUMBER() OVER (ORDER BY original_id) as objectid,
+  *
+FROM my_table
+```
+
+---
+
+### ❌ Pitfall 5: Forgetting to Configure Environment Variables
+
+**Problem:** Server fails to start with connection errors
+
+**Cause:** Missing or incorrect `.env` file
+
+**Solution:**
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your actual Databricks credentials:
+   ```bash
+   DATABRICKS_TOKEN=dapi1234567890abcdef
+   DATABRICKS_SERVER_HOSTNAME=my-workspace.cloud.databricks.com
+   DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/abc123def456
+   ```
+
+3. **Never commit `.env` to git!** It's already in `.gitignore`
+
+---
+
+### ❌ Pitfall 6: Invalid WKT Geometry
+
+**Problem:** Features don't display on the map
+
+**Cause:** WKT geometry is malformed or invalid
+
+**Common WKT mistakes:**
+```sql
+-- ❌ Missing closing parenthesis
+'POINT(-122.4 37.7'
+
+-- ❌ Polygon not closed (first and last point must be the same)
+'POLYGON((-122.5 37.8, -122.3 37.8, -122.3 37.6, -122.5 37.6))'
+
+-- ❌ Extra spaces or commas
+'POINT( -122.4 , 37.7 )'
+
+-- ✅ Correct formats
+'POINT(-122.4194 37.7749)'
+'POLYGON((-122.5 37.8, -122.3 37.8, -122.3 37.6, -122.5 37.6, -122.5 37.8))'
+```
+
+**Test your WKT:**
+```sql
+-- This should NOT return NULL
+SELECT ST_GeomFromText(geometry_wkt, 4326)
+FROM my_table
+LIMIT 10
+
+-- Find invalid geometries
+SELECT objectid, geometry_wkt
+FROM my_table
+WHERE ST_GeomFromText(geometry_wkt, 4326) IS NULL
+```
+
+---
+
+### 💡 Quick Troubleshooting Checklist
+
+When something doesn't work, check these in order:
+
+1. ✅ Are your environment variables set correctly? (`echo $DATABRICKS_TOKEN`)
+2. ✅ Is your SQL Warehouse running? (Check Databricks workspace)
+3. ✅ Do column names in config match your table? (Case-sensitive!)
+4. ✅ Is your geometry column a STRING with WKT text? (Not GEOMETRY type)
+5. ✅ Are coordinates in `(longitude, latitude)` order? (Not `(lat, lon)`)
+6. ✅ Does every row have a unique, non-NULL objectid? (Check for NULLs and duplicates)
+7. ✅ Is your WKT geometry valid? (Test with `ST_GeomFromText`)
+
+---
 
 ## Troubleshooting
 
