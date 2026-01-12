@@ -111,6 +111,8 @@ export GEOMETRY_COLUMN="geom"
 - `"geojson"` - **GeoJSON** - STRING column with GeoJSON text
 - `"geometry"` - **Native Databricks GEOMETRY** - GEOMETRY type column
 
+**IMPORTANT:** You don't need to convert your existing tables! Just create a VIEW with the required columns (`objectid` and your geometry column), then configure `geometryFormat` to match your data. The provider handles all format conversion automatically using Databricks ST functions.
+
 **When to change:**
 - Your table uses WKB binary format instead of WKT text
 - Your table has GeoJSON strings stored as text
@@ -155,10 +157,16 @@ export GEOMETRY_FORMAT="wkb"
 
 **WKB (Well-Known Binary):**
 - **Column type:** BINARY
-- **Example data:** Binary blob representing geometry
+- **Example data:** Binary blob representing geometry (e.g., `X'0101000000000000000000F0BF0000000000000040'`)
 - **Use when:** Geometry is stored as binary data
 - **More efficient** than WKT for storage and transmission
 - **Imported from systems** that use WKB (PostGIS, other spatial databases)
+
+**Common WKB Use Cases:**
+- Migrating from PostGIS (stores geometries as WKB by default)
+- Loading data from binary geospatial file formats (Shapefiles, GeoPackage)
+- High-performance applications where binary is more efficient than text
+- Systems that already generate WKB output
 
 **GeoJSON:**
 - **Column type:** STRING
