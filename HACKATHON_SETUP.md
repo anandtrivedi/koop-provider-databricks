@@ -24,6 +24,82 @@ The app is deployed on Databricks Apps platform and showcases:
 - Multi-layer map demo (70 features)
 - Large dataset demo (10K records)
 
+## Architecture Overview
+
+This demo showcases a complete end-to-end geospatial data pipeline deployed on Databricks Apps:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Databricks Apps Platform                      │
+│                                                                       │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                   Containerized Koop Server                     │ │
+│  │                                                                  │ │
+│  │  ┌──────────────┐        ┌─────────────────────────────────┐  │ │
+│  │  │              │        │   Koop Databricks Provider       │  │ │
+│  │  │   Express    │──────▶│   - Model (SQL queries)          │  │ │
+│  │  │   Server     │        │   - Controller (API endpoints)   │  │ │
+│  │  │   (Node.js)  │        │   - WKT to GeoJSON conversion    │  │ │
+│  │  │              │        │   - Pagination & filtering       │  │ │
+│  │  └──────┬───────┘        └────────────┬────────────────────┘  │ │
+│  │         │                              │                        │ │
+│  │         │                              │ SQL Queries            │ │
+│  │         │ Serves                       ▼                        │ │
+│  │         │                   ┌──────────────────────┐           │ │
+│  │         │                   │  SQL Warehouse       │           │ │
+│  │         │                   │  (Serverless)        │           │ │
+│  │         │                   └──────────┬───────────┘           │ │
+│  │         │                              │                        │ │
+│  │         │                              │ Reads from             │ │
+│  │         │                              ▼                        │ │
+│  │         │                   ┌──────────────────────┐           │ │
+│  │         │                   │  Delta Tables        │           │ │
+│  │         │                   │  - cases_silver_koop │           │ │
+│  │         │                   │  - cell_device_...   │           │ │
+│  │         │                   │  - device_locations  │           │ │
+│  │         │                   └──────────────────────┘           │ │
+│  │         │                                                       │ │
+│  │         ▼                                                       │ │
+│  │  ┌──────────────────────────────────────────────────────────┐ │ │
+│  │  │            Static HTML Demo Pages                        │ │ │
+│  │  │  - index.html (portal)                                   │ │ │
+│  │  │  - pubsec-demo.html (32K+ features with ESRI JS API)    │ │ │
+│  │  │  - multi-layer-map.html                                  │ │ │
+│  │  │  - large-dataset-map.html                                │ │ │
+│  │  └──────────────────────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                       │
+│  Public URL: https://koop-esri-237438879023004.aws.databricksapps...│
+└───────────────────────────────────────────────────────────────────────┘
+                               │
+                               │ ArcGIS FeatureServer REST API
+                               ▼
+                    ┌──────────────────────────┐
+                    │  Client Applications     │
+                    │  - ArcGIS Pro            │
+                    │  - ArcGIS Online         │
+                    │  - ESRI JavaScript API   │
+                    │  - Custom web apps       │
+                    └──────────────────────────┘
+```
+
+### Key Components
+
+1. **Koop Server (Node.js)**: Translates between Databricks tables and ArcGIS FeatureServer API
+2. **Databricks Provider**: Custom plugin that queries SQL Warehouse and converts WKT geometries
+3. **SQL Warehouse**: Serverless compute that reads from Delta tables
+4. **Demo HTML Pages**: Interactive maps built with ESRI JavaScript API 4.28
+5. **Databricks Apps**: Containerized deployment platform with public URL
+
+### Data Flow
+
+1. Client requests features via FeatureServer API endpoint
+2. Koop provider generates SQL query with filters/pagination
+3. SQL Warehouse executes query on Delta tables
+4. Provider converts WKT geometries to GeoJSON
+5. Response formatted as ArcGIS FeatureServer JSON
+6. Demo pages visualize data using ESRI JavaScript API
+
 ## Accessing the Buildathon Workspace
 
 This demo uses data from the Databricks buildathon workspace:
