@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Public Safety Intelligence Platform - Powered by Databricks + Koop</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #infoPanel {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 99;
+      min-width: 320px;
+      max-width: 380px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #infoPanel h2 {
+      margin: 0 0 15px 0;
+      font-size: 20px;
+      color: #323232;
+      border-bottom: 3px solid #0079c1;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f8f8f8;
+      border-radius: 5px;
+      border-left: 4px solid #0079c1;
+    }
+    .section-title {
+      font-weight: bold;
+      font-size: 15px;
+      color: #323232;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .section-icon {
+      margin-right: 8px;
+      font-size: 18px;
+    }
+    .section-desc {
+      font-size: 12px;
+      color: #6e6e6e;
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+    .layer-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+    }
+    .layer-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #323232;
+      margin-bottom: 5px;
+    }
+    .layer-desc {
+      font-size: 11px;
+      color: #6e6e6e;
+      margin: 3px 0;
+    }
+    .layer-count {
+      font-size: 11px;
+      color: #0079c1;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    .layer-toggle {
+      margin-top: 8px;
+    }
+    .layer-toggle label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 12px;
+      color: #323232;
+    }
+    .layer-toggle input {
+      margin-right: 6px;
+      cursor: pointer;
+    }
+    .tech-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      margin: 4px 4px 4px 0;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .esri-badge {
+      background: #005a87;
+      color: white;
+    }
+    .highlight-box {
+      background: #fff3cd;
+      border-left: 4px solid #ff9800;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .highlight-box strong {
+      color: #e65100;
+    }
+    #status {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: white;
+      padding: 12px 18px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      font-size: 13px;
+    }
+    .status-loading {
+      color: #ff8c00;
+      font-weight: bold;
+    }
+    .status-success {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+    .status-error {
+      color: #c62828;
+      font-weight: bold;
+    }
+    #statsPanel {
+      position: absolute;
+      bottom: 30px;
+      left: 15px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 220px;
+    }
+    #statsPanel h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #323232;
+      border-bottom: 2px solid #0079c1;
+      padding-bottom: 5px;
+    }
+    .stat-item {
+      font-size: 12px;
+      margin: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stat-label {
+      color: #6e6e6e;
+    }
+    .stat-value {
+      font-weight: bold;
+      color: #0079c1;
+      font-size: 14px;
+    }
+    .zoom-buttons {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #e0e0e0;
+    }
+    .zoom-buttons-title {
+      font-weight: bold;
+      font-size: 13px;
+      color: #323232;
+      margin-bottom: 8px;
+    }
+    .zoom-button {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      margin: 5px 0;
+      background: #0079c1;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .zoom-button:hover {
+      background: #005a87;
+    }
+    .zoom-button-label {
+      font-weight: bold;
+      display: block;
+    }
+    .zoom-button-stats {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand"
+    ], function(Map, MapView, FeatureLayer, Legend, Expand) {
+
+      // Dynamic base URL - works for both local and deployed
+      const baseUrl = window.location.origin + "/databricks/rest/services";
+      let stats = { cases: 0, devices: 0, cells: 0 };
+      let mapView;
+
+      console.log("🚀 Loading Public Safety Intelligence Platform");
+      console.log("📡 Koop FeatureServer Base URL:", baseUrl);
+
+      // Crime Cases Layer
+      const crimeCasesLayer = new FeatureLayer({
+        url: `${baseUrl}/pubsec_geo_law.demo.cases_silver_koop/FeatureServer/0`,
+        title: "Crime Cases",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            size: 10,
+            color: [220, 38, 38, 0.8],
+            outline: { color: [255, 255, 255], width: 2 }
+          }
+        },
+        popupTemplate: {
+          title: "{case_type} - {case_id}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "city", label: "City" },
+                { fieldName: "state", label: "State" },
+                { fieldName: "address", label: "Address" },
+                { fieldName: "case_status", label: "Status" },
+                { fieldName: "priority", label: "Priority" },
+                { fieldName: "estimated_loss", label: "Estimated Loss ($)", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "incident_start_ts", label: "Incident Time" },
+                { fieldName: "narrative", label: "Narrative" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Device Activity Heatmap
+      const deviceActivityLayer = new FeatureLayer({
+        url: `${baseUrl}/pubsec_geo_law.demo.cell_device_counts_koop/FeatureServer/0`,
+        title: "Device Activity Heatmap (H3 Cells)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            size: 6,
+            color: [251, 191, 36, 0.6],
+            outline: { color: [245, 158, 11], width: 1 }
+          }
+        },
+        popupTemplate: {
+          title: "H3 Cell: {h3_cell}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "city", label: "Location" },
+                { fieldName: "device_count", label: "Device Count", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "activity_category", label: "Activity Level" },
+                { fieldName: "time_bucket", label: "Time Bucket" },
+                { fieldName: "first_event", label: "First Event" },
+                { fieldName: "last_event", label: "Last Event" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Device Location Tracks
+      const deviceLocationsLayer = new FeatureLayer({
+        url: `${baseUrl}/pubsec_geo_law.demo.device_locations_sample_koop/FeatureServer/0`,
+        title: "Device Location Tracks (10K Sample)",
+        outFields: ["*"],
+        visible: false,
+        renderer: {
+          type: "unique-value",
+          field: "is_suspect_device",
+          uniqueValueInfos: [
+            {
+              value: "true",
+              symbol: {
+                type: "simple-marker",
+                size: 5,
+                color: [239, 68, 68, 0.7],
+                outline: { color: [255, 255, 255], width: 1 }
+              },
+              label: "Suspect Devices"
+            },
+            {
+              value: "false",
+              symbol: {
+                type: "simple-marker",
+                size: 4,
+                color: [59, 130, 246, 0.5],
+                outline: { color: [255, 255, 255], width: 0.5 }
+              },
+              label: "Other Devices"
+            }
+          ]
+        },
+        popupTemplate: {
+          title: "{display_label}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "display_name", label: "Person" },
+                { fieldName: "person_role", label: "Role" },
+                { fieldName: "risk_level", label: "Risk Level" },
+                { fieldName: "device_id", label: "Device ID" },
+                { fieldName: "city", label: "Location" },
+                { fieldName: "event_timestamp", label: "Timestamp" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create map
+      const map = new Map({
+        basemap: "dark-gray-vector",
+        layers: [deviceActivityLayer, deviceLocationsLayer, crimeCasesLayer]
+      });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-86.5, 36.0],
+        zoom: 8
+      });
+
+      mapView = view;
+
+      // Add legend
+      const legend = new Legend({
+        view: view,
+        style: "card"
+      });
+
+      const legendExpand = new Expand({
+        view: view,
+        content: legend,
+        expanded: false
+      });
+
+      view.ui.add(legendExpand, "bottom-right");
+
+      // Zoom functions
+      window.zoomToLocation = function(lat, lon, zoomLevel, label) {
+        view.goTo({
+          center: [lon, lat],
+          zoom: zoomLevel
+        }, {
+          duration: 1500,
+          easing: "ease-in-out"
+        }).then(() => {
+          updateStatus(`✅ Zoomed to ${label}`, "success");
+        });
+      };
+
+      // Update status
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.innerHTML = `<span class="status-${type}">${message}</span>`;
+      }
+
+      // Load layers
+      updateStatus("⏳ Loading geospatial layers from Databricks...", "loading");
+
+      let layersLoaded = 0;
+      const totalLayers = 3;
+
+      function checkAllLoaded() {
+        layersLoaded++;
+        if (layersLoaded === totalLayers) {
+          updateStatus("✅ All layers loaded from Databricks!", "success");
+          updateStats();
+        }
+      }
+
+      crimeCasesLayer.load().then(() => {
+        crimeCasesLayer.queryFeatures({ where: "1=1", returnGeometry: false }).then(results => {
+          stats.cases = results.features.length;
+          checkAllLoaded();
+        });
+      }).catch(err => {
+        console.error("❌ Crime cases error:", err);
+        updateStatus("❌ Error loading crime cases", "error");
+      });
+
+      deviceActivityLayer.load().then(() => {
+        deviceActivityLayer.queryFeatures({ where: "1=1", returnGeometry: false }).then(results => {
+          stats.cells = results.features.length;
+          checkAllLoaded();
+        });
+      }).catch(err => {
+        console.error("❌ Device activity error:", err);
+        updateStatus("❌ Error loading device activity", "error");
+      });
+
+      deviceLocationsLayer.load().then(() => {
+        deviceLocationsLayer.queryFeatures({ where: "1=1", returnGeometry: false }).then(results => {
+          stats.devices = results.features.length;
+          checkAllLoaded();
+        });
+      }).catch(err => {
+        console.error("❌ Device locations error:", err);
+        updateStatus("❌ Error loading device locations", "error");
+      });
+
+      function updateStats() {
+        document.getElementById("stat-cases").textContent = stats.cases.toLocaleString();
+        document.getElementById("stat-cells").textContent = stats.cells.toLocaleString();
+        document.getElementById("stat-devices").textContent = stats.devices.toLocaleString();
+        const total = stats.cases + stats.cells + stats.devices;
+        document.getElementById("stat-total").textContent = total.toLocaleString();
+      }
+
+      // Layer toggles
+      document.getElementById("toggle-cases").addEventListener("change", (e) => {
+        crimeCasesLayer.visible = e.target.checked;
+      });
+
+      document.getElementById("toggle-cells").addEventListener("change", (e) => {
+        deviceActivityLayer.visible = e.target.checked;
+      });
+
+      document.getElementById("toggle-devices").addEventListener("change", (e) => {
+        deviceLocationsLayer.visible = e.target.checked;
+      });
+
+      console.log("✅ Public Safety Intelligence Platform initialized");
+    });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+
+  <div id="status">
+    <span class="status-loading">⏳ Loading...</span>
+  </div>
+
+  <div id="infoPanel">
+    <h2>🚨 Public Safety Intelligence</h2>
+
+    <div class="highlight-box">
+      <strong>🌐 ESRI Ecosystem Integration</strong><br>
+      This demo uses the <strong>ESRI JavaScript API</strong> to consume geospatial data from Databricks through <strong>Koop's OGC-compliant FeatureServer</strong>. Compatible with ArcGIS Pro, ArcGIS Online, and Portal.
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon">⚙️</span>
+        Technology Stack
+      </div>
+      <div style="margin-top: 10px;">
+        <span class="tech-badge esri-badge">ESRI JS API 4.28</span>
+        <span class="tech-badge">Koop Framework</span>
+        <span class="tech-badge">Databricks SQL</span>
+        <span class="tech-badge">OGC WFS</span>
+        <span class="tech-badge">GeoServices REST</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon">🗺️</span>
+        Geospatial Layers
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">🚨 Crime Cases</div>
+        <div class="layer-desc">Point locations of reported crime incidents</div>
+        <div class="layer-desc"><strong>Source:</strong> pubsec_geo_law.demo.cases_silver_koop</div>
+        <div class="layer-count" id="stat-cases-panel">Loading...</div>
+        <div class="layer-toggle">
+          <label>
+            <input type="checkbox" id="toggle-cases" checked>
+            Show Crime Cases
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">📱 Device Activity Heatmap</div>
+        <div class="layer-desc">H3 cell aggregations showing device concentrations</div>
+        <div class="layer-desc"><strong>Source:</strong> pubsec_geo_law.demo.cell_device_counts_koop</div>
+        <div class="layer-count" id="stat-cells-panel">Loading...</div>
+        <div class="layer-toggle">
+          <label>
+            <input type="checkbox" id="toggle-cells" checked>
+            Show Device Activity
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-name">📍 Device Location Tracks</div>
+        <div class="layer-desc">Individual device movements (10K sample)</div>
+        <div class="layer-desc"><strong>Source:</strong> pubsec_geo_law.demo.device_locations_sample_koop</div>
+        <div class="layer-count" id="stat-devices-panel">Loading...</div>
+        <div class="layer-toggle">
+          <label>
+            <input type="checkbox" id="toggle-devices">
+            Show Device Tracks
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statsPanel">
+    <h3>📊 Live Feature Count</h3>
+    <div class="stat-item">
+      <span class="stat-label">Crime Cases:</span>
+      <span class="stat-value" id="stat-cases">-</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">H3 Cells:</span>
+      <span class="stat-value" id="stat-cells">-</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Device Tracks:</span>
+      <span class="stat-value" id="stat-devices">-</span>
+    </div>
+    <div class="stat-item" style="border-top: 2px solid #e0e0e0; margin-top: 10px; padding-top: 10px;">
+      <span class="stat-label"><strong>Total Features:</strong></span>
+      <span class="stat-value" id="stat-total">-</span>
+    </div>
+
+    <div class="zoom-buttons">
+      <div class="zoom-buttons-title">🎯 Activity Hotspots</div>
+      <button class="zoom-button" onclick="zoomToLocation(38.9085, -77.0493, 11, 'Washington DC')">
+        <span class="zoom-button-label">📍 Washington, DC</span>
+        <span class="zoom-button-stats">3 cases • 10,750 H3 cells</span>
+      </button>
+      <button class="zoom-button" onclick="zoomToLocation(39.2901, -76.6124, 11, 'Baltimore')">
+        <span class="zoom-button-label">📍 Baltimore, MD</span>
+        <span class="zoom-button-stats">2 cases • 4,021 H3 cells</span>
+      </button>
+      <button class="zoom-button" onclick="zoomToLocation(38.8804, -77.0877, 12, 'Arlington')">
+        <span class="zoom-button-label">📍 Arlington, VA</span>
+        <span class="zoom-button-stats">1 case • 5,376 H3 cells</span>
+      </button>
+      <button class="zoom-button" onclick="zoomToLocation(36.1063, -86.8535, 11, 'Nashville')">
+        <span class="zoom-button-label">📍 Nashville, TN</span>
+        <span class="zoom-button-stats">2 cases • 2,687 H3 cells</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Update panel stats
+    setInterval(() => {
+      const cases = document.getElementById("stat-cases").textContent;
+      const cells = document.getElementById("stat-cells").textContent;
+      const devices = document.getElementById("stat-devices").textContent;
+
+      if (cases !== "-") {
+        document.getElementById("stat-cases-panel").textContent = `${cases} features`;
+        document.getElementById("stat-cells-panel").textContent = `${cells} features`;
+        document.getElementById("stat-devices-panel").textContent = `${devices} features`;
+      }
+    }, 500);
+  </script>
+</body>
+</html>

@@ -18,7 +18,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@koopjs/koop-core": "^10.1.2",
-    "@databricks/koop-provider": "file:../.."
+    "@databricks/koop-provider": "file:./provider-lib"
   },
   "engines": {
     "node": ">=16.0.0"
