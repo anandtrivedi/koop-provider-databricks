@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Koop Large Dataset Demo - 10,000 Records with Pagination</title>
+  <title>Koop Enterprise-Scale Demo - 18,000 Records with Multi-Geometry</title>
   <style>
     html, body, #viewDiv {
       padding: 0;
@@ -45,30 +45,25 @@
       color: #323232;
       margin-bottom: 8px;
     }
-    .info-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #d9534f;
-      margin: 5px 0;
-    }
-    .info-label {
-      font-size: 11px;
-      color: #6e6e6e;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .stat-row {
+    .layer-stat {
       display: flex;
       justify-content: space-between;
-      margin: 8px 0;
+      margin: 5px 0;
       font-size: 13px;
     }
-    .stat-label {
+    .layer-name {
       color: #6e6e6e;
     }
-    .stat-value {
+    .layer-count {
       font-weight: bold;
       color: #323232;
+    }
+    .total-count {
+      font-size: 28px;
+      font-weight: bold;
+      color: #d9534f;
+      margin: 10px 0;
+      text-align: center;
     }
     #status {
       position: absolute;
@@ -93,7 +88,7 @@
       color: #c62828;
       font-weight: bold;
     }
-    #paginationInfo {
+    #layerToggles {
       position: absolute;
       bottom: 30px;
       left: 15px;
@@ -103,26 +98,36 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       z-index: 99;
       min-width: 280px;
-      border-left: 4px solid #5bc0de;
     }
-    #paginationInfo h3 {
+    #layerToggles h3 {
       margin: 0 0 10px 0;
       font-size: 14px;
       color: #323232;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    .pagination-detail {
-      font-size: 12px;
-      margin: 5px 0;
-      color: #323232;
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
     }
-    .highlight {
-      background: #fff3cd;
-      padding: 2px 4px;
-      border-radius: 3px;
+    .toggle-row input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    .toggle-row label {
+      flex: 1;
+      font-size: 13px;
       font-weight: bold;
-      color: #856404;
+      cursor: pointer;
+    }
+    .layer-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      margin-right: 10px;
     }
   </style>
   <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
@@ -137,17 +142,16 @@
     ], function(Map, MapView, FeatureLayer, Legend, Expand) {
 
       const baseUrl = "http://localhost:8082/databricks/rest/services";
-      const layerUrl = `${baseUrl}/main.default.koop_large_dataset/FeatureServer/0`;
 
-      let totalCount = 0;
-      let loadedCount = 0;
-      let queryCount = 0;
+      console.log("🚀 Loading Enterprise-Scale Multi-Geometry Demo");
+      console.log("   • 10,000 business points");
+      console.log("   • 5,000 property polygons");
+      console.log("   • 3,000 road linestrings");
+      console.log("   • Total: 18,000 features");
 
-      console.log("🚀 Loading Large Dataset Demo (10,000 records)");
-
-      // Create feature layer
+      // Create business layer (points)
       const businessLayer = new FeatureLayer({
-        url: layerUrl,
+        url: `${baseUrl}/main.default.koop_large_businesses/FeatureServer/0`,
         title: "Business Locations (10K)",
         outFields: ["*"],
         renderer: {
@@ -168,40 +172,83 @@
             {
               type: "fields",
               fieldInfos: [
-                {
-                  fieldName: "city",
-                  label: "City"
-                },
-                {
-                  fieldName: "state",
-                  label: "State"
-                },
-                {
-                  fieldName: "annual_revenue",
-                  label: "Annual Revenue",
-                  format: {
-                    digitSeparator: true,
-                    places: 0
-                  }
-                },
-                {
-                  fieldName: "employee_count",
-                  label: "Employees"
-                },
-                {
-                  fieldName: "objectid",
-                  label: "Record ID"
-                }
+                { fieldName: "city", label: "City" },
+                { fieldName: "state", label: "State" },
+                { fieldName: "annual_revenue", label: "Annual Revenue", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "employee_count", label: "Employees" },
+                { fieldName: "objectid", label: "Record ID" }
               ]
             }
           ]
         }
       });
 
-      // Create map
+      // Create parcel layer (polygons)
+      const parcelLayer = new FeatureLayer({
+        url: `${baseUrl}/main.default.koop_large_parcels/FeatureServer/0`,
+        title: "Property Parcels (5K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [91, 192, 222, 0.3],
+            outline: {
+              color: [41, 128, 185],
+              width: 1
+            }
+          }
+        },
+        popupTemplate: {
+          title: "Parcel {parcel_id}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "zone_type", label: "Zone Type" },
+                { fieldName: "area_sqm", label: "Area (m²)", format: { digitSeparator: true } },
+                { fieldName: "assessed_value", label: "Assessed Value", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "objectid", label: "Record ID" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create roads layer (linestrings)
+      const roadLayer = new FeatureLayer({
+        url: `${baseUrl}/main.default.koop_large_roads/FeatureServer/0`,
+        title: "Road Segments (3K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-line",
+            color: [240, 173, 78, 0.8],
+            width: 2
+          }
+        },
+        popupTemplate: {
+          title: "{road_name}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "road_type", label: "Road Type" },
+                { fieldName: "length_m", label: "Length (m)", format: { digitSeparator: true } },
+                { fieldName: "num_lanes", label: "Number of Lanes" },
+                { fieldName: "speed_limit", label: "Speed Limit (mph)" },
+                { fieldName: "objectid", label: "Record ID" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create map with all layers
       const map = new Map({
         basemap: "gray-vector",
-        layers: [businessLayer]
+        layers: [parcelLayer, roadLayer, businessLayer]  // Bottom to top
       });
 
       const view = new MapView({
@@ -231,79 +278,59 @@
         statusDiv.innerHTML = `<span class="status-${type}">${message}</span>`;
       }
 
-      // Update pagination info
-      function updatePaginationInfo() {
-        document.getElementById("pagination-queries").textContent = queryCount;
-        document.getElementById("pagination-loaded").textContent = loadedCount.toLocaleString();
-        document.getElementById("pagination-total").textContent = totalCount.toLocaleString();
+      // Load layers and get counts
+      updateStatus("⏳ Loading layers...", "loading");
 
-        const percentage = totalCount > 0 ? Math.round((loadedCount / totalCount) * 100) : 0;
-        document.getElementById("pagination-percentage").textContent = percentage + "%";
-      }
+      Promise.all([
+        businessLayer.load(),
+        parcelLayer.load(),
+        roadLayer.load()
+      ]).then(() => {
+        console.log("✅ All layers loaded");
+        updateStatus("⏳ Querying record counts...", "loading");
 
-      // Load layer and get total count
-      updateStatus("⏳ Loading layer metadata...", "loading");
+        // Query counts for all layers
+        return Promise.all([
+          businessLayer.queryFeatureCount({ where: "1=1" }),
+          parcelLayer.queryFeatureCount({ where: "1=1" }),
+          roadLayer.queryFeatureCount({ where: "1=1" })
+        ]);
+      }).then(([businessCount, parcelCount, roadCount]) => {
+        const totalCount = businessCount + parcelCount + roadCount;
 
-      businessLayer.load().then(() => {
-        console.log("✅ Layer loaded successfully");
-        updateStatus("⏳ Querying total record count...", "loading");
+        console.log(`✅ Record counts:`);
+        console.log(`   • Businesses: ${businessCount.toLocaleString()}`);
+        console.log(`   • Parcels: ${parcelCount.toLocaleString()}`);
+        console.log(`   • Roads: ${roadCount.toLocaleString()}`);
+        console.log(`   • Total: ${totalCount.toLocaleString()}`);
 
-        // Query total count
-        businessLayer.queryFeatureCount({ where: "1=1" }).then(count => {
-          totalCount = count;
-          console.log(`✅ Total records: ${count.toLocaleString()}`);
+        document.getElementById("business-count").textContent = businessCount.toLocaleString();
+        document.getElementById("parcel-count").textContent = parcelCount.toLocaleString();
+        document.getElementById("road-count").textContent = roadCount.toLocaleString();
+        document.getElementById("total-count").textContent = totalCount.toLocaleString();
 
-          document.getElementById("total-count").textContent = count.toLocaleString();
-          updateStatus(`✅ Layer ready! ${count.toLocaleString()} records available`, "success");
-          updatePaginationInfo();
-        }).catch(err => {
-          console.error("❌ Count error:", err);
-          updateStatus("❌ Failed to get count", "error");
-        });
-
+        updateStatus(`✅ ${totalCount.toLocaleString()} features ready!`, "success");
       }).catch(err => {
-        console.error("❌ Layer load error:", err);
-        updateStatus("❌ Layer failed to load", "error");
+        console.error("❌ Error loading layers:", err);
+        updateStatus("❌ Failed to load layers", "error");
       });
 
-      // Monitor queries
-      view.whenLayerView(businessLayer).then(layerView => {
-        console.log("✅ LayerView created");
-
-        // Watch for feature fetches
-        layerView.watch("updating", (updating) => {
-          if (!updating) {
-            // Query finished, update stats
-            setTimeout(() => {
-              businessLayer.queryFeatures({
-                where: "1=1",
-                geometry: view.extent,
-                returnGeometry: false
-              }).then(results => {
-                queryCount++;
-                loadedCount = results.features.length;
-                updatePaginationInfo();
-
-                console.log(`Query #${queryCount}: Loaded ${loadedCount} features in current extent`);
-              });
-            }, 500);
-          }
-        });
-
-      }).catch(err => {
-        console.error("❌ LayerView error:", err);
+      // Layer toggles
+      document.getElementById("toggle-businesses").addEventListener("change", (e) => {
+        businessLayer.visible = e.target.checked;
       });
 
-      // Watch extent changes
-      view.watch("extent", (extent) => {
-        if (extent) {
-          console.log("📍 Map extent changed - ArcGIS will automatically page through data");
-        }
+      document.getElementById("toggle-parcels").addEventListener("change", (e) => {
+        parcelLayer.visible = e.target.checked;
+      });
+
+      document.getElementById("toggle-roads").addEventListener("change", (e) => {
+        roadLayer.visible = e.target.checked;
       });
 
       console.log("✅ Map initialized");
-      console.log("💡 As you zoom and pan, watch the pagination stats update!");
-      console.log("💡 The ArcGIS JS API automatically handles pagination behind the scenes");
+      console.log("💡 Zoom and pan to see pagination in action!");
+      console.log("💡 Open browser console (F12) for detailed logs");
     });
   </script>
 </head>
@@ -315,83 +342,94 @@
   </div>
 
   <div id="infoPanel">
-    <h2>📊 Large Dataset Demo</h2>
+    <h2>📊 Enterprise-Scale Demo</h2>
 
     <div class="info-section">
-      <div class="info-label">Total Records in Databricks</div>
-      <div class="info-value" id="total-count">-</div>
-      <div style="font-size: 11px; color: #6e6e6e; margin-top: 5px;">
-        Synthetic business locations across the USA
+      <div class="info-title">Total Features in Databricks</div>
+      <div class="total-count" id="total-count">-</div>
+
+      <div class="layer-stat">
+        <span class="layer-name">🔴 Business Locations (Points)</span>
+        <span class="layer-count" id="business-count">-</span>
+      </div>
+      <div class="layer-stat">
+        <span class="layer-name">🔵 Property Parcels (Polygons)</span>
+        <span class="layer-count" id="parcel-count">-</span>
+      </div>
+      <div class="layer-stat">
+        <span class="layer-name">🟠 Road Segments (LineStrings)</span>
+        <span class="layer-count" id="road-count">-</span>
       </div>
     </div>
 
     <div class="info-section">
-      <div class="info-title">💡 How Pagination Works</div>
+      <div class="info-title">💡 What This Demonstrates</div>
       <div style="font-size: 12px; line-height: 1.6; color: #323232;">
-        <p><strong>ArcGIS automatically pages through data:</strong></p>
+        <p><strong>Enterprise-Scale Performance:</strong></p>
         <ul style="margin: 5px 0; padding-left: 20px;">
-          <li>Only loads features in current map extent</li>
-          <li>Requests 100-1000 records per query</li>
-          <li>Uses <code>resultOffset</code> and <code>resultRecordCount</code></li>
-          <li>Caches loaded features client-side</li>
+          <li>18,000 total features across 3 layers</li>
+          <li>3 different geometry types (Point, Polygon, LineString)</li>
+          <li>Automatic pagination for all layers</li>
+          <li>Only loads features in current viewport</li>
         </ul>
-        <p style="margin-top: 10px;"><strong>Try this:</strong></p>
+        <p style="margin-top: 10px;"><strong>Real-World Use Cases:</strong></p>
         <ul style="margin: 5px 0; padding-left: 20px;">
-          <li>Zoom in/out and watch queries execute</li>
-          <li>Pan around - only visible area loads</li>
-          <li>Open browser console (F12) to see details</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-title">⚡ Performance Benefits</div>
-      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
-        <strong>Without pagination:</strong>
-        <ul style="margin: 5px 0; padding-left: 20px;">
-          <li>❌ 10,000 records = 2-5 MB transfer</li>
-          <li>❌ 5-10 second wait time</li>
-          <li>❌ Browser memory issues</li>
-        </ul>
-        <strong style="margin-top: 8px; display: block;">With pagination:</strong>
-        <ul style="margin: 5px 0; padding-left: 20px;">
-          <li>✅ 100 records = 50-100 KB transfer</li>
-          <li>✅ < 1 second per query</li>
-          <li>✅ Minimal memory usage</li>
+          <li>Points: Retail stores, sensors, assets</li>
+          <li>Polygons: Property parcels, zones, regions</li>
+          <li>Lines: Roads, utilities, pipelines</li>
         </ul>
       </div>
     </div>
 
     <div class="info-section">
-      <div class="info-title">🎯 Real-World Scale</div>
+      <div class="info-title">⚡ Performance at Scale</div>
       <div style="font-size: 12px; line-height: 1.6; color: #323232;">
-        This demo uses 10K records, but the same pagination mechanism scales to:
+        <p>This same pattern scales to:</p>
         <ul style="margin: 5px 0; padding-left: 20px;">
-          <li>100,000 records (retail stores)</li>
-          <li>1,000,000 records (IoT sensors)</li>
-          <li>10,000,000+ records (logistics data)</li>
+          <li>100,000+ parcel datasets</li>
+          <li>1,000,000+ IoT sensor locations</li>
+          <li>Complex road networks (millions of segments)</li>
         </ul>
-        <p style="margin-top: 8px;">Performance stays constant because queries always fetch small pages!</p>
+        <p style="margin-top: 8px;">Pagination keeps queries fast regardless of dataset size!</p>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">🎯 Why Multiple Geometry Types Matter</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <strong>Polygons have larger payloads than points:</strong>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>Point: ~50 bytes (just lon/lat)</li>
+          <li>Polygon: 500-5000 bytes (many vertices)</li>
+        </ul>
+        <p style="margin-top: 8px;">This demo proves the provider handles complex geometries efficiently with proper pagination.</p>
       </div>
     </div>
   </div>
 
-  <div id="paginationInfo">
-    <h3>📡 Live Pagination Stats</h3>
-    <div class="pagination-detail">
-      <strong>API Queries Made:</strong> <span class="highlight" id="pagination-queries">0</span>
+  <div id="layerToggles">
+    <h3>🗂️ Layer Visibility</h3>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-businesses" checked>
+      <div class="layer-color" style="background-color: rgba(217, 83, 79, 0.7);"></div>
+      <label for="toggle-businesses">Business Locations</label>
     </div>
-    <div class="pagination-detail">
-      <strong>Features Loaded:</strong> <span class="highlight" id="pagination-loaded">0</span>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-parcels" checked>
+      <div class="layer-color" style="background-color: rgba(91, 192, 222, 0.5);"></div>
+      <label for="toggle-parcels">Property Parcels</label>
     </div>
-    <div class="pagination-detail">
-      <strong>Total Available:</strong> <span class="highlight" id="pagination-total">0</span>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-roads" checked>
+      <div class="layer-color" style="background-color: rgba(240, 173, 78, 0.8);"></div>
+      <label for="toggle-roads">Road Segments</label>
     </div>
-    <div class="pagination-detail">
-      <strong>Coverage:</strong> <span class="highlight" id="pagination-percentage">0%</span>
-    </div>
+
     <div style="font-size: 11px; color: #6e6e6e; margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">
-      💡 <strong>Zoom/pan to trigger more queries.</strong> Each query fetches only what's visible in your viewport.
+      💡 <strong>Toggle layers on/off</strong> to see each geometry type individually or combined.
     </div>
   </div>
 </body>
