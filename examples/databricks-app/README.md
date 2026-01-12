@@ -11,7 +11,7 @@ This folder contains a **standalone deployment example** that:
 - Provides a simple server that can be deployed to Databricks
 - Is completely optional - you can deploy the provider in your own way
 
-**📐 Architecture Diagram**: See [DATABRICKS_APPS_DEPLOYMENT.md](./DATABRICKS_APPS_DEPLOYMENT.md#architecture-overview) for a detailed architecture diagram showing how all components work together.
+**📐 Architecture Diagram**: See [DATABRICKS_DEPLOYMENT.md](../../DATABRICKS_DEPLOYMENT.md#architecture-overview) for a detailed architecture diagram showing how all components work together.
 
 ## When Would You Use This?
 
