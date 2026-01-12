@@ -45,7 +45,8 @@ if (serveDemoPages) {
 }
 
 // Start server
-const port = process.env.PORT || 8080
+// Default to 8000 (Databricks Apps default) or 8080 for local development
+const port = process.env.PORT || 8000
 koop.server.listen(port, () => {
   console.log(``)
   console.log(`🚀 Koop Databricks Provider Server`)

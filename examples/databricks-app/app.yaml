@@ -1,0 +1,44 @@
+# Databricks App Configuration
+# This file configures the Koop Databricks Provider app for Public Sector Geo Law Demo
+
+# App resources - SQL Warehouse for querying geospatial data
+resources:
+  - name: databricks-warehouse
+    description: SQL Warehouse for Koop provider queries
+    sql_warehouse:
+      id: ac513babbf5b5b8c
+
+# Environment variables for the app
+env:
+  - name: DATABRICKS_SERVER_HOSTNAME
+    value: fe-vm-industry-solutions-buildathon.cloud.databricks.com
+  - name: DATABRICKS_HTTP_PATH
+    value: /sql/1.0/warehouses/ac513babbf5b5b8c
+  - name: DATABRICKS_TOKEN
+    value: YOUR_DATABRICKS_TOKEN_HERE  # Replace with your token or use secret scope
+  - name: LOG_LEVEL
+    value: INFO
+  - name: SERVE_DEMO_PAGES
+    value: "true"
+  # Note: PORT is automatically set to 8000 by Databricks Apps platform
+
+# For production, use secrets instead:
+# env:
+#   - name: DATABRICKS_TOKEN
+#     secret:
+#       scope: your-secret-scope
+#       key: databricks-token
+
+# Compute configuration
+compute:
+  size: small
+
+# Optional: Auto-scaling configuration
+# scale:
+#   min_instances: 1
+#   max_instances: 3
+
+# Authentication configuration
+# Allow unauthenticated access for demo/POC purposes
+authentication:
+  required: false

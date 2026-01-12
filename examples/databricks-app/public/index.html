@@ -184,18 +184,35 @@
 
     <div class="content">
       <div class="section">
+        <h2>🚀 Quick Start</h2>
+        <div class="api-section" style="margin-bottom: 20px;">
+          <h3>Create Demo Data in Your Workspace</h3>
+          <p style="color: #6c757d; margin-bottom: 15px;">These demos use test data you can create in your own Databricks workspace. Run the included scripts to get started:</p>
+          <pre style="background: white; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 12px;">
+# Create multi-layer test data (cities, highways, states, parks)
+node create-multi-layer-data.js
+
+# Create large dataset for pagination demo (10,000 businesses)
+node create-large-dataset.js</pre>
+          <p style="color: #6c757d; margin-top: 10px; font-size: 13px;">
+            ⚙️ Configure your credentials in <code>.env</code> file first
+          </p>
+        </div>
+
         <h2>🎨 Interactive Demos</h2>
         <div class="cards">
           <a href="/multi-layer-map.html" class="card">
             <h3>📊 Multi-Layer Map</h3>
             <p>Explore multiple geometry types on one map: cities (points), highways (lines), states (polygons), and national parks. Perfect for understanding how different feature types work together.</p>
             <p style="margin-top: 10px; font-weight: bold;">✨ 70 features across 4 layers</p>
+            <p style="margin-top: 8px; font-size: 12px; opacity: 0.9;">💾 Run: create-multi-layer-data.js</p>
           </a>
 
           <a href="/large-dataset-map.html" class="card">
             <h3>⚡ Large Dataset Demo</h3>
             <p>See pagination in action with 10,000 business locations. Watch live stats as the map automatically pages through data while you zoom and pan.</p>
             <p style="margin-top: 10px; font-weight: bold;">📈 10,000 records with real-time pagination</p>
+            <p style="margin-top: 8px; font-size: 12px; opacity: 0.9;">💾 Run: create-large-dataset.js</p>
           </a>
         </div>
       </div>

@@ -1,0 +1,40 @@
+# Databricks Sync Ignore File
+# Files and directories to exclude from workspace sync
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Test data generation scripts in root (not needed in production)
+# Note: provider-lib should be synced, so we use full paths
+/create-*.js
+/test-*.js
+/find-*.js
+
+# Documentation (optional, can include if you want)
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Local env files (use Databricks secrets instead)
+.env
+.env.local
+
+# Large dataset files
+PAGINATION_DEMO.md
+DATABRICKS_APPS_DEPLOYMENT.md
