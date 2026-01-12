@@ -12,6 +12,14 @@ This provider enables you to:
 
 ## Documentation
 
+### Core Guides
+
+- **[Table Requirements](./TABLE_REQUIREMENTS.md)** - How to prepare your Databricks tables (objectid, geometry_wkt, WKT format)
+- **[Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Deploy on Databricks Apps, standalone, or Model Serving
+- **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Test with ArcGIS Online, Pro, and JavaScript API
+
+### External Resources
+
 - [Koop Documentation](https://koopjs.github.io/docs/usage/provider)
 - [Koop CLI Documentation](https://github.com/koopjs/koop-cli)
 - [Databricks SQL API](https://docs.databricks.com/sql/api/sql-execution-tutorial.html)
@@ -63,10 +71,40 @@ This provider enables you to:
    - `spatialReference`: SRID/WKID for spatial reference (default: `4326` for WGS84)
    - `maxRows`: Maximum number of rows to return per query (default: `10000`)
 
+   **📖 See [TABLE_REQUIREMENTS.md](./TABLE_REQUIREMENTS.md) for detailed guidance on preparing your tables**
+
 3. Set the log level (optional):
    ```bash
    export LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
    ```
+
+### Preparing Your Tables
+
+Your Databricks tables must have two key columns:
+
+1. **ObjectID column** (integer, unique) - Identifies each feature
+2. **Geometry column** (string, WKT format) - Stores spatial data
+
+**Quick example:**
+```sql
+CREATE TABLE my_cities (
+  objectid INT,              -- Unique ID
+  city_name STRING,
+  geometry_wkt STRING        -- WKT: "POINT(-122.4194 37.7749)"
+)
+```
+
+**If you have existing tables with lat/lon columns:**
+```sql
+CREATE VIEW my_cities_koop AS
+SELECT
+  id as objectid,
+  CONCAT('POINT(', longitude, ' ', latitude, ')') as geometry_wkt,
+  *
+FROM my_existing_cities
+```
+
+**📖 For complete table preparation guide, see [TABLE_REQUIREMENTS.md](./TABLE_REQUIREMENTS.md)**
 
 ### Running the Server
 
