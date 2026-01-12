@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Koop Databricks Provider - Local Test</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+    #info {
+      position: absolute;
+      top: 15px;
+      left: 60px;
+      background: white;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 99;
+      max-width: 400px;
+    }
+    #status { margin: 10px 0; }
+    .success { color: #2e7d32; font-weight: bold; }
+    .error { color: #c62828; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer"
+    ], function(Map, MapView, FeatureLayer) {
+
+      // Local Koop server URL
+      const serviceUrl = "http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0";
+
+      console.log("🚀 Testing Koop provider at:", serviceUrl);
+
+      const featureLayer = new FeatureLayer({
+        url: serviceUrl,
+        outFields: ["*"],
+        popupTemplate: {
+          title: "{city_name}, {state}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                {
+                  fieldName: "population",
+                  label: "Population",
+                  format: {
+                    digitSeparator: true,
+                    places: 0
+                  }
+                },
+                {
+                  fieldName: "objectid",
+                  label: "Object ID"
+                }
+              ]
+            }
+          ]
+        }
+      });
+
+      const map = new Map({
+        basemap: "topo-vector",
+        layers: [featureLayer]
+      });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-95, 38],
+        zoom: 4
+      });
+
+      // Log layer load status
+      featureLayer.load().then(function() {
+        console.log("✅ FeatureLayer loaded successfully!");
+        console.log("Layer info:", {
+          title: featureLayer.title,
+          geometryType: featureLayer.geometryType,
+          fields: featureLayer.fields.map(f => f.name),
+          objectIdField: featureLayer.objectIdField
+        });
+
+        document.getElementById("status").innerHTML = '<span class="success">✅ Layer loaded successfully!</span>';
+
+        // Query for all features
+        featureLayer.queryFeatures({
+          where: "1=1",
+          outFields: ["*"],
+          returnGeometry: true
+        }).then(function(results) {
+          console.log(`✅ Query returned ${results.features.length} features`);
+          document.getElementById("count").innerHTML = `<strong>Found ${results.features.length} cities</strong>`;
+
+          // List cities
+          const cities = results.features.map(f =>
+            `${f.attributes.city_name}, ${f.attributes.state} (pop: ${f.attributes.population.toLocaleString()})`
+          );
+          document.getElementById("cities").innerHTML = cities.join('<br>');
+
+          // Zoom to extent
+          view.goTo(results.features);
+
+        }).catch(function(error) {
+          console.error("❌ Query error:", error);
+          document.getElementById("status").innerHTML = '<span class="error">❌ Query failed: ' + error.message + '</span>';
+        });
+
+      }).catch(function(error) {
+        console.error("❌ Layer load error:", error);
+        document.getElementById("status").innerHTML = '<span class="error">❌ Layer failed to load: ' + error.message + '</span>';
+      });
+
+      view.whenLayerView(featureLayer).then(function(layerView) {
+        console.log("✅ LayerView created successfully");
+      }).catch(function(error) {
+        console.error("❌ LayerView error:", error);
+      });
+    });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <div id="info">
+    <h3>🗺️ Koop Databricks Local Test</h3>
+    <div id="status">⏳ Loading layer...</div>
+    <div id="count"></div>
+    <div id="cities" style="font-size: 11px; margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+    <p style="font-size: 11px; margin-top: 10px; color: #666;">
+      Server: <strong>localhost:8082</strong><br>
+      Check browser console (F12) for detailed logs
+    </p>
+  </div>
+</body>
+</html>

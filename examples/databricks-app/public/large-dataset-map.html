@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Koop Large Dataset Demo - 10,000 Records with Pagination</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #infoPanel {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 320px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #infoPanel h2 {
+      margin: 0 0 15px 0;
+      font-size: 20px;
+      color: #323232;
+      border-bottom: 2px solid #d9534f;
+      padding-bottom: 10px;
+    }
+    .info-section {
+      margin: 15px 0;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 5px;
+      border-left: 4px solid #d9534f;
+    }
+    .info-title {
+      font-weight: bold;
+      font-size: 14px;
+      color: #323232;
+      margin-bottom: 8px;
+    }
+    .info-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #d9534f;
+      margin: 5px 0;
+    }
+    .info-label {
+      font-size: 11px;
+      color: #6e6e6e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    .stat-label {
+      color: #6e6e6e;
+    }
+    .stat-value {
+      font-weight: bold;
+      color: #323232;
+    }
+    #status {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 200px;
+    }
+    .status-loading {
+      color: #ff8c00;
+      font-weight: bold;
+    }
+    .status-success {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+    .status-error {
+      color: #c62828;
+      font-weight: bold;
+    }
+    #paginationInfo {
+      position: absolute;
+      bottom: 30px;
+      left: 15px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 280px;
+      border-left: 4px solid #5bc0de;
+    }
+    #paginationInfo h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #323232;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .pagination-detail {
+      font-size: 12px;
+      margin: 5px 0;
+      color: #323232;
+    }
+    .highlight {
+      background: #fff3cd;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #856404;
+    }
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand"
+    ], function(Map, MapView, FeatureLayer, Legend, Expand) {
+
+      const baseUrl = "http://localhost:8082/databricks/rest/services";
+      const layerUrl = `${baseUrl}/main.default.koop_large_dataset/FeatureServer/0`;
+
+      let totalCount = 0;
+      let loadedCount = 0;
+      let queryCount = 0;
+
+      console.log("🚀 Loading Large Dataset Demo (10,000 records)");
+
+      // Create feature layer
+      const businessLayer = new FeatureLayer({
+        url: layerUrl,
+        title: "Business Locations (10K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            size: 6,
+            color: [217, 83, 79, 0.7],
+            outline: {
+              color: [255, 255, 255],
+              width: 0.5
+            }
+          }
+        },
+        popupTemplate: {
+          title: "{business_name}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                {
+                  fieldName: "city",
+                  label: "City"
+                },
+                {
+                  fieldName: "state",
+                  label: "State"
+                },
+                {
+                  fieldName: "annual_revenue",
+                  label: "Annual Revenue",
+                  format: {
+                    digitSeparator: true,
+                    places: 0
+                  }
+                },
+                {
+                  fieldName: "employee_count",
+                  label: "Employees"
+                },
+                {
+                  fieldName: "objectid",
+                  label: "Record ID"
+                }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create map
+      const map = new Map({
+        basemap: "gray-vector",
+        layers: [businessLayer]
+      });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-98, 39],
+        zoom: 4
+      });
+
+      // Add legend
+      const legend = new Legend({
+        view: view,
+        style: "card"
+      });
+
+      const legendExpand = new Expand({
+        view: view,
+        content: legend,
+        expanded: false
+      });
+
+      view.ui.add(legendExpand, "bottom-right");
+
+      // Update status
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.innerHTML = `<span class="status-${type}">${message}</span>`;
+      }
+
+      // Update pagination info
+      function updatePaginationInfo() {
+        document.getElementById("pagination-queries").textContent = queryCount;
+        document.getElementById("pagination-loaded").textContent = loadedCount.toLocaleString();
+        document.getElementById("pagination-total").textContent = totalCount.toLocaleString();
+
+        const percentage = totalCount > 0 ? Math.round((loadedCount / totalCount) * 100) : 0;
+        document.getElementById("pagination-percentage").textContent = percentage + "%";
+      }
+
+      // Load layer and get total count
+      updateStatus("⏳ Loading layer metadata...", "loading");
+
+      businessLayer.load().then(() => {
+        console.log("✅ Layer loaded successfully");
+        updateStatus("⏳ Querying total record count...", "loading");
+
+        // Query total count
+        businessLayer.queryFeatureCount({ where: "1=1" }).then(count => {
+          totalCount = count;
+          console.log(`✅ Total records: ${count.toLocaleString()}`);
+
+          document.getElementById("total-count").textContent = count.toLocaleString();
+          updateStatus(`✅ Layer ready! ${count.toLocaleString()} records available`, "success");
+          updatePaginationInfo();
+        }).catch(err => {
+          console.error("❌ Count error:", err);
+          updateStatus("❌ Failed to get count", "error");
+        });
+
+      }).catch(err => {
+        console.error("❌ Layer load error:", err);
+        updateStatus("❌ Layer failed to load", "error");
+      });
+
+      // Monitor queries
+      view.whenLayerView(businessLayer).then(layerView => {
+        console.log("✅ LayerView created");
+
+        // Watch for feature fetches
+        layerView.watch("updating", (updating) => {
+          if (!updating) {
+            // Query finished, update stats
+            setTimeout(() => {
+              businessLayer.queryFeatures({
+                where: "1=1",
+                geometry: view.extent,
+                returnGeometry: false
+              }).then(results => {
+                queryCount++;
+                loadedCount = results.features.length;
+                updatePaginationInfo();
+
+                console.log(`Query #${queryCount}: Loaded ${loadedCount} features in current extent`);
+              });
+            }, 500);
+          }
+        });
+
+      }).catch(err => {
+        console.error("❌ LayerView error:", err);
+      });
+
+      // Watch extent changes
+      view.watch("extent", (extent) => {
+        if (extent) {
+          console.log("📍 Map extent changed - ArcGIS will automatically page through data");
+        }
+      });
+
+      console.log("✅ Map initialized");
+      console.log("💡 As you zoom and pan, watch the pagination stats update!");
+      console.log("💡 The ArcGIS JS API automatically handles pagination behind the scenes");
+    });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+
+  <div id="status">
+    <span class="status-loading">⏳ Loading...</span>
+  </div>
+
+  <div id="infoPanel">
+    <h2>📊 Large Dataset Demo</h2>
+
+    <div class="info-section">
+      <div class="info-label">Total Records in Databricks</div>
+      <div class="info-value" id="total-count">-</div>
+      <div style="font-size: 11px; color: #6e6e6e; margin-top: 5px;">
+        Synthetic business locations across the USA
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">💡 How Pagination Works</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <p><strong>ArcGIS automatically pages through data:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>Only loads features in current map extent</li>
+          <li>Requests 100-1000 records per query</li>
+          <li>Uses <code>resultOffset</code> and <code>resultRecordCount</code></li>
+          <li>Caches loaded features client-side</li>
+        </ul>
+        <p style="margin-top: 10px;"><strong>Try this:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>Zoom in/out and watch queries execute</li>
+          <li>Pan around - only visible area loads</li>
+          <li>Open browser console (F12) to see details</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">⚡ Performance Benefits</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <strong>Without pagination:</strong>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>❌ 10,000 records = 2-5 MB transfer</li>
+          <li>❌ 5-10 second wait time</li>
+          <li>❌ Browser memory issues</li>
+        </ul>
+        <strong style="margin-top: 8px; display: block;">With pagination:</strong>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>✅ 100 records = 50-100 KB transfer</li>
+          <li>✅ < 1 second per query</li>
+          <li>✅ Minimal memory usage</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">🎯 Real-World Scale</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        This demo uses 10K records, but the same pagination mechanism scales to:
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>100,000 records (retail stores)</li>
+          <li>1,000,000 records (IoT sensors)</li>
+          <li>10,000,000+ records (logistics data)</li>
+        </ul>
+        <p style="margin-top: 8px;">Performance stays constant because queries always fetch small pages!</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="paginationInfo">
+    <h3>📡 Live Pagination Stats</h3>
+    <div class="pagination-detail">
+      <strong>API Queries Made:</strong> <span class="highlight" id="pagination-queries">0</span>
+    </div>
+    <div class="pagination-detail">
+      <strong>Features Loaded:</strong> <span class="highlight" id="pagination-loaded">0</span>
+    </div>
+    <div class="pagination-detail">
+      <strong>Total Available:</strong> <span class="highlight" id="pagination-total">0</span>
+    </div>
+    <div class="pagination-detail">
+      <strong>Coverage:</strong> <span class="highlight" id="pagination-percentage">0%</span>
+    </div>
+    <div style="font-size: 11px; color: #6e6e6e; margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">
+      💡 <strong>Zoom/pan to trigger more queries.</strong> Each query fetches only what's visible in your viewport.
+    </div>
+  </div>
+</body>
+</html>
