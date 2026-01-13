@@ -103,6 +103,66 @@ You should see 10 US cities as GeoJSON features!
 
 ---
 
+## Performance Optimization (Optional)
+
+Once your basic setup is working, you can upgrade to **native GEOMETRY format** for best performance:
+
+### Why Upgrade to Native GEOMETRY?
+
+⚡ **2-3x Faster Queries** - No parsing overhead, optimized binary storage
+🚀 **Lower Network Usage** - Most compact representation
+📊 **Better at Scale** - Handles large datasets more efficiently
+
+### Upgrade Steps
+
+**1. Convert Your WKT Column to Native GEOMETRY:**
+
+```sql
+-- Option A: Add new column and populate
+ALTER TABLE main.default.my_table ADD COLUMN geometry GEOMETRY;
+UPDATE main.default.my_table
+SET geometry = ST_GeomFromText(geometry_wkt, 4326);
+
+-- Option B: Create new table with GEOMETRY column
+CREATE TABLE main.default.my_table_optimized AS
+SELECT
+  objectid,
+  ST_GeomFromText(geometry_wkt, 4326) as geometry,
+  other_columns
+FROM main.default.my_table;
+```
+
+**2. Update Configuration:**
+
+```json
+{
+  "objectId": "objectid",
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry",
+  "spatialReference": 4326,
+  "maxRows": 10000
+}
+```
+
+**3. Restart Server:**
+
+```bash
+npm start
+```
+
+**Result:** Same functionality, but 2-3x faster queries with no other changes needed!
+
+### When to Use Each Format
+
+| Format | Best For | Performance |
+|--------|----------|-------------|
+| **WKT** (default) | Getting started, debugging, easy setup | Good ✓ |
+| **Native GEOMETRY** | Production, large datasets, performance-critical | Excellent ⚡⚡⚡ |
+
+**📖 See [config/README.md](./config/README.md) for details on all supported geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)**
+
+---
+
 ### Configuration
 
 1. Create a `.env` file in the root directory (see `.env.example` for template):
