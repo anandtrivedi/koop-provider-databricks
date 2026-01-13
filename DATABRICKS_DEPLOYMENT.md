@@ -982,7 +982,7 @@ https://<workspace-id>.databricksapps.com/<app-id>/databricks/rest/services/<cat
 
 Example:
 ```
-https://your-workspace.databricksapps.com/koop-provider/databricks/rest/services/main.default.cities/FeatureServer/0
+https://your-workspace.databricksapps.com/your-app/databricks/rest/services/main.default.cities/FeatureServer/0
 ```
 
 **Done!** You now have a publicly accessible FeatureServer that works with ArcGIS Online.
@@ -1233,7 +1233,7 @@ Configure these environment variables in your deployment:
 | Variable | Description | Example |
 |----------|-------------|---------  |
 | `DATABRICKS_SERVER_HOSTNAME` | Workspace hostname | `your-workspace.cloud.databricks.com` |
-| `DATABRICKS_HTTP_PATH` | SQL Warehouse path | `/sql/1.0/warehouses/YOUR_WAREHOUSE_ID` |
+| `DATABRICKS_HTTP_PATH` | SQL Warehouse path | `/sql/1.0/warehouses/your-warehouse-id` |
 | `DATABRICKS_TOKEN` | Authentication token | Use secrets management |
 | `LOG_LEVEL` | Logging level | `INFO` or `DEBUG` |
 | `NODE_ENV` | Node environment | `production` |

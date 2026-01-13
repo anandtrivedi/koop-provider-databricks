@@ -1,6 +1,6 @@
 {
   "name": "@databricks/koop-provider",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Databricks provider for koop",
   "main": "src/index.js",
   "directories": {
