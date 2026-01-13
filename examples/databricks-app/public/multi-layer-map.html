@@ -70,6 +70,91 @@
       margin-right: 6px;
       cursor: pointer;
     }
+    #endpointsSection {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 2px solid #e0e0e0;
+    }
+    .endpoints-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .endpoints-header h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #323232;
+      display: flex;
+      align-items: center;
+    }
+    .endpoints-toggle {
+      font-size: 18px;
+      transition: transform 0.3s;
+    }
+    .endpoints-toggle.expanded {
+      transform: rotate(180deg);
+    }
+    .endpoint-item {
+      background: #f0f7fb;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border-left: 3px solid #0079c1;
+    }
+    .endpoint-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #323232;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+    }
+    .endpoint-icon {
+      margin-right: 5px;
+    }
+    .endpoint-url-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .endpoint-url {
+      font-size: 11px;
+      color: #0079c1;
+      background: white;
+      padding: 6px 8px;
+      border-radius: 3px;
+      word-break: break-all;
+      flex: 1;
+      font-family: 'Courier New', monospace;
+    }
+    .copy-btn {
+      background: #0079c1;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover {
+      background: #005a9e;
+    }
+    .copy-btn:active {
+      background: #004577;
+    }
+    .copy-btn.copied {
+      background: #2e7d32;
+    }
+    .endpoints-content {
+      display: none;
+    }
+    .endpoints-content.show {
+      display: block;
+    }
     #statsPanel {
       position: absolute;
       bottom: 30px;
@@ -416,6 +501,41 @@
         parksLayer.visible = e.target.checked;
       });
 
+      // Endpoints panel toggle
+      document.getElementById("endpoints-header").addEventListener("click", () => {
+        const content = document.getElementById("endpoints-content");
+        const toggle = document.getElementById("endpoints-toggle");
+        content.classList.toggle("show");
+        toggle.classList.toggle("expanded");
+      });
+
+      // Copy to clipboard functionality
+      function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(() => {
+          const originalText = button.textContent;
+          button.textContent = "✓ Copied!";
+          button.classList.add("copied");
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove("copied");
+          }, 2000);
+        }).catch(err => {
+          console.error("Failed to copy:", err);
+          button.textContent = "Failed";
+          setTimeout(() => {
+            button.textContent = "Copy";
+          }, 2000);
+        });
+      }
+
+      // Attach copy button handlers
+      document.querySelectorAll(".copy-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const url = e.target.dataset.url;
+          copyToClipboard(url, e.target);
+        });
+      });
+
       console.log("✅ Map initialized successfully");
     });
   </script>
@@ -483,6 +603,62 @@
           <input type="checkbox" id="toggle-parks" checked>
           Show Parks Layer
         </label>
+      </div>
+    </div>
+
+    <div id="endpointsSection">
+      <div class="endpoints-header" id="endpoints-header">
+        <h3>🔗 API Endpoints</h3>
+        <span class="endpoints-toggle" id="endpoints-toggle">▼</span>
+      </div>
+      <div class="endpoints-content" id="endpoints-content">
+        <p style="font-size: 11px; color: #6e6e6e; margin-bottom: 10px;">
+          Copy these URLs to add layers directly to ArcGIS Online
+        </p>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">📍</span>
+            Cities
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url" id="cities-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🛣️</span>
+            Highways
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url" id="highways-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_highways/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_highways/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🗺️</span>
+            States
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url" id="states-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_states/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_states/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🏞️</span>
+            Parks
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url" id="parks-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_parks/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_parks/FeatureServer/0">Copy</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
