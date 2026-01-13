@@ -8,6 +8,7 @@ This directory contains the configuration file `default.json` that controls how 
 {
   "objectId": "objectid",
   "geometryColumn": "geometry_wkt",
+  "geometryFormat": "wkt",
   "spatialReference": 4326,
   "maxRows": 10000
 }
@@ -205,6 +206,95 @@ CREATE TABLE my_cities_wkt (
 )
 ```
 
+**WKB Format:**
+```sql
+CREATE TABLE my_cities_wkb (
+  objectid INT,
+  city_name STRING,
+  geometry_wkb BINARY  -- Binary WKB data
+)
+```
+
+**GeoJSON Format:**
+```sql
+CREATE TABLE my_cities_geojson (
+  objectid INT,
+  city_name STRING,
+  geometry_geojson STRING  -- '{"type":"Point","coordinates":[-122.4194,37.7749]}'
+)
+```
+
+**Native GEOMETRY Format:**
+```sql
+CREATE TABLE my_cities_geometry (
+  objectid INT,
+  city_name STRING,
+  geometry GEOMETRY  -- Native Databricks GEOMETRY type
+)
+```
+
+#### Converting Between Formats:
+
+**WKT to GEOMETRY:**
+```sql
+CREATE TABLE my_table_geometry AS
+SELECT
+  objectid,
+  ST_GeomFromText(geometry_wkt, 4326) as geometry,
+  other_columns
+FROM my_table_wkt
+```
+
+**GEOMETRY to WKT:**
+```sql
+CREATE TABLE my_table_wkt AS
+SELECT
+  objectid,
+  ST_AsText(geometry) as geometry_wkt,
+  other_columns
+FROM my_table_geometry
+```
+
+**WKB to GEOMETRY:**
+```sql
+CREATE TABLE my_table_geometry AS
+SELECT
+  objectid,
+  ST_GeomFromWKB(geometry_wkb) as geometry,
+  other_columns
+FROM my_table_wkb
+```
+
+**GEOMETRY to WKB:**
+```sql
+CREATE TABLE my_table_wkb AS
+SELECT
+  objectid,
+  ST_AsBinary(geometry) as geometry_wkb,
+  other_columns
+FROM my_table_geometry
+```
+
+**GeoJSON to GEOMETRY:**
+```sql
+CREATE TABLE my_table_geometry AS
+SELECT
+  objectid,
+  ST_GeomFromGeoJSON(geometry_geojson) as geometry,
+  other_columns
+FROM my_table_geojson
+```
+
+**GEOMETRY to GeoJSON:**
+```sql
+CREATE TABLE my_table_geojson AS
+SELECT
+  objectid,
+  ST_AsGeoJSON(geometry) as geometry_geojson,
+  other_columns
+FROM my_table_geometry
+```
+
 ---
 
 ### 4. `spatialReference` (default: `4326`)
@@ -261,7 +351,7 @@ export SPATIAL_REFERENCE="3857"
 
 ---
 
-### 4. `maxRows` (default: `10000`)
+### 5. `maxRows` (default: `10000`)
 
 **What it does:** Controls the maximum number of features returned in a single query response.
 
@@ -334,6 +424,7 @@ All configuration values can be overridden using environment variables without e
 # Override all settings via environment variables
 export OBJECT_ID_COLUMN="feature_id"
 export GEOMETRY_COLUMN="geom"
+export GEOMETRY_FORMAT="wkb"
 export SPATIAL_REFERENCE="3857"
 export MAX_ROWS="5000"
 

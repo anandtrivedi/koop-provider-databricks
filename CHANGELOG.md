@@ -122,7 +122,7 @@ This release represents a complete rewrite of the data layer to leverage Databri
 #### Configuration
 - Removed `tableName` from config (now in URL path)
 - Removed `sridColumn` (no longer needed with ST_AsGeoJSON)
-- Changed `geometryColumn` default to `geometry`
+- Changed `geometryColumn` default to `geometry_wkt`
 - Added `spatialReference` configuration (default: 4326)
 - Changed `maxRows` to integer with default 10000
 

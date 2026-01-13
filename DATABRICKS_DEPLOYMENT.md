@@ -232,6 +232,7 @@ Configure the provider in `config/default.json`:
 {
   "objectId": "objectid",
   "geometryColumn": "geometry_wkt",
+  "geometryFormat": "wkt",
   "spatialReference": 4326,
   "maxRows": 10000
 }
@@ -255,7 +256,7 @@ Configure the provider in `config/default.json`:
 
 #### 2. `geometryColumn` (Default: `"geometry_wkt"`)
 
-**What it is:** Name of your WKT geometry column
+**What it is:** Name of your geometry column
 
 **When to change:**
 - Your column is named `geometry`, `geom`, `wkt`, `shape`, etc.
@@ -267,7 +268,46 @@ Configure the provider in `config/default.json`:
 }
 ```
 
-#### 3. `spatialReference` (Default: `4326`)
+#### 3. `geometryFormat` (Default: `"wkt"`)
+
+**What it is:** Format of geometry data in the geometry column
+
+**Supported formats:**
+- `"wkt"` - **Well-Known Text** (default) - STRING column with WKT text like `'POINT(-122.4 37.8)'`
+- `"wkb"` - **Well-Known Binary** - BINARY column with WKB binary data
+- `"geojson"` - **GeoJSON** - STRING column with GeoJSON text like `'{"type":"Point","coordinates":[-122.4,37.8]}'`
+- `"geometry"` - **Native Databricks GEOMETRY** - GEOMETRY type column
+
+**When to change:**
+- Your table uses WKB binary format instead of WKT text
+- Your table has GeoJSON strings stored as text
+- Your table has native Databricks GEOMETRY type columns
+- Migrating from PostGIS or other spatial databases that use WKB
+
+**Examples:**
+```json
+// For WKB binary format
+{
+  "geometryFormat": "wkb",
+  "geometryColumn": "geometry_wkb"
+}
+
+// For GeoJSON string format
+{
+  "geometryFormat": "geojson",
+  "geometryColumn": "geometry_geojson"
+}
+
+// For native Databricks GEOMETRY type
+{
+  "geometryFormat": "geometry",
+  "geometryColumn": "geom"
+}
+```
+
+**See Also:** [config/README.md](config/README.md#3-geometryformat-default-wkt) for detailed format documentation and conversion examples.
+
+#### 4. `spatialReference` (Default: `4326`)
 
 **What it is:** SRID (Spatial Reference ID) for your coordinates
 
@@ -288,7 +328,7 @@ Configure the provider in `config/default.json`:
 }
 ```
 
-#### 4. `maxRows` (Default: `10000`)
+#### 5. `maxRows` (Default: `10000`)
 
 **What it is:** Maximum number of features returned per query
 
