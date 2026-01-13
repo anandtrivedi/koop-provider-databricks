@@ -12,7 +12,7 @@ const config = require('../config/default.json')
 const logger = require('./logger')
 
 const objectId = config.objectId || process.env.OBJECT_ID_COLUMN || 'objectid'
-const geometryColumn = config.geometryColumn || process.env.GEOMETRY_COLUMN || 'geometry'
+const geometryColumn = config.geometryColumn || process.env.GEOMETRY_COLUMN || 'geometry_wkt'
 const geometryFormat = (config.geometryFormat || process.env.GEOMETRY_FORMAT || 'wkt').toLowerCase()
 const spatialReference = config.spatialReference || parseInt(process.env.SPATIAL_REFERENCE) || 4326
 const maxRows = parseInt(config.maxRows) || parseInt(process.env.MAX_ROWS) || 10000
