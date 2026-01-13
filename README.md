@@ -325,11 +325,13 @@ NODE_ENV=test npm start
 
 Your Databricks table must have:
 
-1. **Geometry Column**: STRING column containing WKT (Well-Known Text) format
-   - Must be a STRING type containing valid WKT geometry
+1. **Geometry Column**: Column containing spatial geometry data in one of the supported formats
+   - **Supported formats**: WKT (STRING), WKB (BINARY), GeoJSON (STRING), or native GEOMETRY type
+   - **Default format**: WKT text strings (most common, easy to create)
    - Supports: POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON
-   - Example: `'POINT(-122.4194 37.7749)'`
-   - The column name should be specified in `config/default.json` (default: `geometry_wkt`)
+   - WKT example: `'POINT(-122.4194 37.7749)'`
+   - The column name and format should be specified in `config/default.json` (defaults: `geometry_wkt` column, `wkt` format)
+   - **📖 See [config/README.md](./config/README.md) for all supported geometry formats and configuration**
 
 2. **Object ID Column**: Unique identifier for each feature
    - Must be unique and non-null
@@ -392,8 +394,23 @@ INSERT INTO catalog.schema.cities VALUES
 
 ### If You Have Native GEOMETRY Columns
 
-If your existing tables use Databricks native GEOMETRY type, create a view to convert to WKT strings:
+If your existing tables use Databricks native GEOMETRY type, you have two options:
 
+**Option 1: Use native GEOMETRY directly** ⚡ **BEST PERFORMANCE** (v0.2+):
+```sql
+-- No conversion needed! Just use your existing table
+-- Configure the provider to use native GEOMETRY format
+```
+
+Update `config/default.json`:
+```json
+{
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry"
+}
+```
+
+**Option 2: Convert to WKT** (for compatibility):
 ```sql
 CREATE VIEW catalog.schema.cities_koop AS
 SELECT
@@ -403,9 +420,9 @@ SELECT
   ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
   h3_index
 FROM catalog.schema.cities_with_geometry;
-
--- Now access via: /databricks/rest/services/catalog.schema.cities_koop/FeatureServer/0
 ```
+
+**📖 See [DATABRICKS_DEPLOYMENT.md - Scenario 2](./DATABRICKS_DEPLOYMENT.md#scenario-2-table-has-native-geometry-column) for more details**
 
 ## Common Pitfalls for Beginners
 
@@ -453,13 +470,19 @@ FROM my_table
 
 ---
 
-### ❌ Pitfall 2: WKT vs GEOMETRY Type Confusion
+### ❌ Pitfall 2: Geometry Format Configuration
 
-**Problem:** Not sure whether to use STRING or GEOMETRY column type
+**Problem:** Not sure which geometry format to use or how to configure it
 
-**Answer:** This provider expects **STRING columns with WKT text**, not native Databricks GEOMETRY type.
+**Answer:** With v0.2+, the provider supports **multiple geometry formats**. Choose what works best for your data:
 
-**Correct (WKT String):**
+**Supported Formats:**
+- **WKT** (STRING) - Default, human-readable, easy to create
+- **WKB** (BINARY) - Binary format, common for PostGIS migrations
+- **GeoJSON** (STRING) - JSON format, web-friendly
+- **Native GEOMETRY** - Databricks native type, **best performance** ⚡
+
+**Example 1: WKT String (Default)**
 ```sql
 CREATE TABLE my_cities (
   objectid INT,
@@ -471,24 +494,37 @@ INSERT INTO my_cities VALUES
   (1, 'San Francisco', 'POINT(-122.4194 37.7749)')  -- ✅ WKT string
 ```
 
-**Incorrect (Native GEOMETRY):**
+Config:
+```json
+{
+  "geometryColumn": "geometry_wkt",
+  "geometryFormat": "wkt"
+}
+```
+
+**Example 2: Native GEOMETRY (Best Performance)** ⚡
 ```sql
 CREATE TABLE my_cities (
   objectid INT,
   city_name STRING,
-  geometry GEOMETRY    -- ❌ Native Databricks GEOMETRY type (not supported directly)
+  geometry GEOMETRY    -- ✅ Native Databricks GEOMETRY type (v0.2+)
 )
+
+INSERT INTO my_cities VALUES
+  (1, 'San Francisco', ST_Point(-122.4194, 37.7749))
 ```
 
-**If you have GEOMETRY columns:** Create a view that converts to WKT strings:
-```sql
-CREATE VIEW my_cities_koop AS
-SELECT
-  objectid,
-  ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
-  *
-FROM my_cities
+Config:
+```json
+{
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry"
+}
 ```
+
+**No conversion needed!** With v0.2, you can use existing GEOMETRY columns directly.
+
+**📖 See [config/README.md](./config/README.md) for all format options and performance comparison**
 
 ---
 
