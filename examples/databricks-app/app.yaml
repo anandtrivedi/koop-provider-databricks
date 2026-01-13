@@ -1,33 +1,35 @@
 # Databricks App Configuration
-# This file configures the Koop Databricks Provider app for Public Sector Geo Law Demo
+# This file configures the Koop Databricks Provider app
 
 # App resources - SQL Warehouse for querying geospatial data
 resources:
   - name: databricks-warehouse
     description: SQL Warehouse for Koop provider queries
     sql_warehouse:
-      id: ac513babbf5b5b8c
+      id: YOUR_WAREHOUSE_ID
 
 # Environment variables for the app
 env:
   - name: DATABRICKS_SERVER_HOSTNAME
-    value: fe-vm-industry-solutions-buildathon.cloud.databricks.com
+    value: your-workspace.cloud.databricks.com  # Update with your workspace hostname
   - name: DATABRICKS_HTTP_PATH
-    value: /sql/1.0/warehouses/ac513babbf5b5b8c
+    value: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID  # Update with your SQL Warehouse HTTP path
   - name: DATABRICKS_TOKEN
-    value: YOUR_DATABRICKS_TOKEN_HERE  # Replace with your token or use secret scope
+    value: YOUR_DATABRICKS_TOKEN  # Replace with your personal access token before deployment
   - name: LOG_LEVEL
     value: INFO
   - name: SERVE_DEMO_PAGES
     value: "true"
   # Note: PORT is automatically set to 8000 by Databricks Apps platform
 
-# For production, use secrets instead:
+# RECOMMENDED: For production, use secrets instead of hardcoding tokens:
 # env:
 #   - name: DATABRICKS_TOKEN
 #     secret:
 #       scope: your-secret-scope
 #       key: databricks-token
+#
+# See: https://docs.databricks.com/en/security/secrets/index.html
 
 # Compute configuration
 compute:
@@ -39,6 +41,8 @@ compute:
 #   max_instances: 3
 
 # Authentication configuration
-# Allow unauthenticated access for demo/POC purposes
+# For public access without OAuth, you need to deploy outside of Databricks Apps
+# (e.g., standalone Docker, AWS ECS, Azure Container Instances)
+# Databricks Apps always require workspace authentication
 authentication:
-  required: false
+  required: false  # Still requires OAuth login in Databricks Apps
