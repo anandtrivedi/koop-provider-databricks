@@ -219,10 +219,12 @@
       "esri/widgets/Expand"
     ], function(Map, MapView, FeatureLayer, Legend, Expand) {
 
-      const baseUrl = "http://localhost:8082/databricks/rest/services";
+      // Dynamically determine baseUrl based on current host
+      const baseUrl = `${window.location.protocol}//${window.location.host}/databricks/rest/services`;
       let stats = { cities: 0, highways: 0, states: 0, parks: 0 };
 
       console.log("🚀 Loading Koop Databricks Multi-Layer Demo");
+      console.log("📍 Using base URL:", baseUrl);
 
       // Define layers with styling
       const citiesLayer = new FeatureLayer({
@@ -528,13 +530,26 @@
         });
       }
 
-      // Attach copy button handlers
+      // Attach copy button handlers and update URLs dynamically
       document.querySelectorAll(".copy-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
           const url = e.target.dataset.url;
           copyToClipboard(url, e.target);
         });
       });
+
+      // Update endpoint URLs with dynamic baseUrl
+      document.getElementById("cities-url").textContent = `${baseUrl}/main.default.koop_test_cities/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_cities"]').dataset.url = `${baseUrl}/main.default.koop_test_cities/FeatureServer/0`;
+
+      document.getElementById("highways-url").textContent = `${baseUrl}/main.default.koop_test_highways/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_highways"]').dataset.url = `${baseUrl}/main.default.koop_test_highways/FeatureServer/0`;
+
+      document.getElementById("states-url").textContent = `${baseUrl}/main.default.koop_test_states/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_states"]').dataset.url = `${baseUrl}/main.default.koop_test_states/FeatureServer/0`;
+
+      document.getElementById("parks-url").textContent = `${baseUrl}/main.default.koop_test_parks/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_parks"]').dataset.url = `${baseUrl}/main.default.koop_test_parks/FeatureServer/0`;
 
       console.log("✅ Map initialized successfully");
     });

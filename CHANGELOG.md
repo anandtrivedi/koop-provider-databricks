@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed `e2-demo-field-eng.cloud.databricks.com` to `your-workspace.cloud.databricks.com`
   - Improved documentation clarity with consistent placeholder naming
 
+### Fixed
+
+- **Dynamic URL Detection in HTML Demo Pages**: Fixed hardcoded localhost URLs to dynamically detect current host
+  - Demo pages now work correctly when deployed to Databricks Apps or any other hosting environment
+  - Base URL automatically determined from `window.location.protocol` and `window.location.host`
+  - API endpoint URLs in copy-to-clipboard sections updated dynamically
+  - Added console logging of detected base URL for debugging
+
 ## [0.2.0] - 2026-01-11
 
 ### Major Performance Improvements
