@@ -59,18 +59,18 @@ export OBJECT_ID_COLUMN="feature_id"
 
 ### 2. `geometryColumn` (default: `"geometry_wkt"`)
 
-**What it does:** Specifies the name of the column that contains WKT (Well-Known Text) geometry strings.
+**What it does:** Specifies the **name of the column** that contains geometry data.
+
+**Important:** The column name is independent of the data format. The actual data type and format of this column are determined by the `geometryFormat` parameter (see below).
 
 **Requirements:**
-- Must be a STRING type
-- Must contain valid WKT format text
-- Must not be NULL for features you want to display
-
-**Supported WKT formats:**
-- `POINT(longitude latitude)` - Single location
-- `LINESTRING(lon1 lat1, lon2 lat2, ...)` - Path or route
-- `POLYGON((lon1 lat1, lon2 lat2, ..., lon1 lat1))` - Area or boundary
-- `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON` - Collections
+- Column must exist in your table
+- Column must not be NULL for features you want to display
+- Data type depends on `geometryFormat`:
+  - `geometryFormat: "wkt"` → Column must be STRING with WKT text
+  - `geometryFormat: "wkb"` → Column must be BINARY with WKB data
+  - `geometryFormat: "geojson"` → Column must be STRING with GeoJSON text
+  - `geometryFormat: "geometry"` → Column must be native GEOMETRY type
 
 **When to change:**
 - Your table uses a different column name like `geometry`, `geom`, `wkt`, `shape`, etc.
@@ -78,21 +78,38 @@ export OBJECT_ID_COLUMN="feature_id"
 **Examples:**
 
 ```json
-// If your table has a column named "geometry"
+// Example 1: Column named "geometry_wkt" with WKT text data (default)
 {
-  "geometryColumn": "geometry"
+  "geometryColumn": "geometry_wkt",
+  "geometryFormat": "wkt"
 }
 
-// If your table has a column named "geom"
+// Example 2: Column named "geometry" with native GEOMETRY type
 {
-  "geometryColumn": "geom"
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry"
 }
 
-// If your table has a column named "shape" (common in ArcGIS migrations)
+// Example 3: Column named "geom" with WKB binary data
 {
-  "geometryColumn": "shape"
+  "geometryColumn": "geom",
+  "geometryFormat": "wkb"
+}
+
+// Example 4: Column named "shape" with WKT text (ArcGIS migrations)
+{
+  "geometryColumn": "shape",
+  "geometryFormat": "wkt"
+}
+
+// Example 5: Column named "geo_json" with GeoJSON string data
+{
+  "geometryColumn": "geo_json",
+  "geometryFormat": "geojson"
 }
 ```
+
+**Key Point:** You can name your geometry column anything you want! Just set `geometryColumn` to match your column name, and set `geometryFormat` to match the data type stored in that column.
 
 **Can also be set via environment variable:**
 ```bash
