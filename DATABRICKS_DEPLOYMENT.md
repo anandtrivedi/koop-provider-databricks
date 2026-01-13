@@ -416,7 +416,27 @@ CREATE TABLE my_parcels (
 )
 ```
 
-**Solution: Convert to WKT**
+**Solution: Use directly with native GEOMETRY format** ⚡ **BEST PERFORMANCE**
+```sql
+CREATE VIEW my_parcels_koop AS
+SELECT
+  parcel_id as objectid,
+  geom as geometry,  -- Use native GEOMETRY directly!
+  owner,
+  area
+FROM my_parcels
+WHERE geom IS NOT NULL
+```
+
+**Configuration:**
+```json
+{
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry"
+}
+```
+
+**Alternative: Convert to WKT** (if needed for compatibility)
 ```sql
 CREATE VIEW my_parcels_koop AS
 SELECT
