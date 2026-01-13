@@ -8,13 +8,14 @@
   },
   "scripts": {
     "start": "koop serve",
-    "test": "standard && tape test/*.js | tap-spec"
+    "test": "standard && tape test/*.js | tap-spec",
+    "create-test-data": "node examples/testing/create-test-table.js"
   },
   "dependencies": {
     "@databricks/sql": "^1.5.0",
+    "@koopjs/koop-core": "^10.4.17",
     "config": "^3.2.5",
     "dotenv": "^16.3.1",
-    "koop": "^3.17.0",
     "uuid": "^9.0.0"
   },
   "author": "Stuart Lynn",
