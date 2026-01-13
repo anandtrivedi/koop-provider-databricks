@@ -224,9 +224,11 @@
       "esri/widgets/Expand"
     ], function(Map, MapView, FeatureLayer, Legend, Expand) {
 
-      const baseUrl = "http://localhost:8082/databricks/rest/services";
+      // Dynamically determine baseUrl based on current host
+      const baseUrl = `${window.location.protocol}//${window.location.host}/databricks/rest/services`;
 
       console.log("🚀 Loading Enterprise-Scale Multi-Geometry Demo");
+      console.log("📍 Using base URL:", baseUrl);
       console.log("   • 10,000 business points");
       console.log("   • 5,000 property polygons");
       console.log("   • 3,000 road linestrings");
@@ -438,13 +440,27 @@
         });
       }
 
-      // Attach copy button handlers
+      // Attach copy button handlers and update URLs dynamically
       document.querySelectorAll(".copy-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
           const url = e.target.dataset.url;
           copyToClipboard(url, e.target);
         });
       });
+
+      // Update endpoint URLs with dynamic baseUrl
+      const businessesUrl = `${baseUrl}/main.default.koop_large_businesses/FeatureServer/0`;
+      const parcelsUrl = `${baseUrl}/main.default.koop_large_parcels/FeatureServer/0`;
+      const roadsUrl = `${baseUrl}/main.default.koop_large_roads/FeatureServer/0`;
+
+      document.querySelector('.endpoint-url').textContent = businessesUrl;
+      document.querySelector('[data-url*="koop_large_businesses"]').dataset.url = businessesUrl;
+
+      document.querySelectorAll('.endpoint-url')[1].textContent = parcelsUrl;
+      document.querySelector('[data-url*="koop_large_parcels"]').dataset.url = parcelsUrl;
+
+      document.querySelectorAll('.endpoint-url')[2].textContent = roadsUrl;
+      document.querySelector('[data-url*="koop_large_roads"]').dataset.url = roadsUrl;
 
       console.log("✅ Map initialized");
       console.log("💡 Zoom and pan to see pagination in action!");
