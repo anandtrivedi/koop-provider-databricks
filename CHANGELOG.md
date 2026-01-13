@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-01-12
+
+### Added
+
+- **API Endpoint URLs in HTML Demo Pages**: Added collapsible "API Endpoints" panels to multi-layer-map.html and large-dataset-map.html demo pages with copy-to-clipboard functionality
+  - One-click URL copying for easy ArcGIS Online integration
+  - Visual feedback ("✓ Copied!") when URL is copied to clipboard
+  - Professional styling matching existing UI theme (blue for multi-layer, red for large-dataset)
+  - Collapsed by default to save screen space
+
+### Changed
+
+- **Documentation URLs**: Replaced internal workspace URLs with generic placeholders for better consistency
+  - Changed `your-workspace.databricksapps.com` to `your-workspace.databricksapps.com`
+  - Changed `your-workspace.cloud.databricks.com` to `your-workspace.cloud.databricks.com`
+  - Improved documentation clarity with consistent placeholder naming
+
 ## [0.2.0] - 2026-01-11
 
 ### Major Performance Improvements
