@@ -19,7 +19,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for detailed release notes.
 ## Overview
 
 This provider enables you to:
-- Connect to Databricks SQL warehouses and query geospatial tables
+- Connect to Databricks SQL warehouses or general-purpose clusters and query geospatial tables
 - Expose Databricks data as ArcGIS FeatureServer endpoints
 - Support multiple geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)
 - Support H3 spatial filtering for optimized geospatial queries
@@ -31,7 +31,7 @@ This provider enables you to:
 
 - **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Everything from table preparation to deployment and testing
   - Part 1: Preparing your tables (objectid, geometry_wkt, WKT format)
-  - Part 2: Deployment options (Databricks Apps, standalone, Model Serving)
+  - Part 2: Deployment options (Databricks Apps, Docker/Cloud deployment)
   - Part 3: Testing and ArcGIS integration
 - **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Detailed testing guide for ArcGIS Online, Pro, and JavaScript API
 
@@ -46,9 +46,9 @@ This provider enables you to:
 ### Prerequisites
 
 - Node.js (v14 or higher)
-- Access to a Databricks workspace with SQL warehouse
+- Access to a Databricks workspace with SQL warehouse or general-purpose cluster
 - Databricks personal access token
-- Geospatial table with WKT geometry columns
+- Geospatial table with geometry column (supports WKT, WKB, GeoJSON, or native GEOMETRY)
 
 ### Installation
 
@@ -170,6 +170,8 @@ npm start
    DATABRICKS_TOKEN=your_personal_access_token
    DATABRICKS_SERVER_HOSTNAME=your_workspace.cloud.databricks.com
    DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your_warehouse_id
+   # Or for general-purpose cluster:
+   # DATABRICKS_HTTP_PATH=sql/protocolv1/o/{org-id}/{cluster-id}
    ```
 
 2. Update `config/default.json` with your provider configuration:

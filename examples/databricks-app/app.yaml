@@ -1,21 +1,24 @@
 # Databricks App Configuration
 # This file configures the Koop Databricks Provider app
 
-# App resources - SQL Warehouse for querying geospatial data
-resources:
-  - name: databricks-warehouse
-    description: SQL Warehouse for Koop provider queries
-    sql_warehouse:
-      id: YOUR_WAREHOUSE_ID
+# App resources - General-purpose cluster for querying geospatial data
+# Note: Using general-purpose cluster instead of SQL warehouse
+# resources:
+#   - name: databricks-cluster
+#     description: General-purpose cluster for Koop provider queries
+#     cluster:
+#       id: YOUR_CLUSTER_ID
 
 # Environment variables for the app
 env:
   - name: DATABRICKS_SERVER_HOSTNAME
-    value: your-workspace.cloud.databricks.com  # Update with your workspace hostname
+    value: your-workspace.cloud.databricks.com
   - name: DATABRICKS_HTTP_PATH
-    value: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID  # Update with your SQL Warehouse HTTP path
+    value: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID
+    # Or for general-purpose cluster:
+    # value: sql/protocolv1/o/YOUR_ORG_ID/YOUR_CLUSTER_ID
   - name: DATABRICKS_TOKEN
-    value: YOUR_DATABRICKS_TOKEN  # Replace with your personal access token before deployment
+    value: YOUR_DATABRICKS_TOKEN
   - name: LOG_LEVEL
     value: INFO
   - name: SERVE_DEMO_PAGES
