@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Koop Enterprise-Scale Demo - 18,000 Records with Multi-Geometry</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #infoPanel {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 320px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #infoPanel h2 {
+      margin: 0 0 15px 0;
+      font-size: 20px;
+      color: #323232;
+      border-bottom: 2px solid #d9534f;
+      padding-bottom: 10px;
+    }
+    .info-section {
+      margin: 15px 0;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 5px;
+      border-left: 4px solid #d9534f;
+    }
+    .info-title {
+      font-weight: bold;
+      font-size: 14px;
+      color: #323232;
+      margin-bottom: 8px;
+    }
+    .layer-stat {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+      font-size: 13px;
+    }
+    .layer-name {
+      color: #6e6e6e;
+    }
+    .layer-count {
+      font-weight: bold;
+      color: #323232;
+    }
+    .total-count {
+      font-size: 28px;
+      font-weight: bold;
+      color: #d9534f;
+      margin: 10px 0;
+      text-align: center;
+    }
+    #status {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 200px;
+    }
+    .status-loading {
+      color: #ff8c00;
+      font-weight: bold;
+    }
+    .status-success {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+    .status-error {
+      color: #c62828;
+      font-weight: bold;
+    }
+    #layerToggles {
+      position: absolute;
+      bottom: 30px;
+      left: 15px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 99;
+      min-width: 280px;
+    }
+    #layerToggles h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #323232;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    .toggle-row input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    .toggle-row label {
+      flex: 1;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .layer-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      margin-right: 10px;
+    }
+    #endpointsSection {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #e0e0e0;
+    }
+    .endpoints-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .endpoints-header .info-title {
+      margin: 0;
+      display: flex;
+      align-items: center;
+    }
+    .endpoints-toggle {
+      font-size: 18px;
+      transition: transform 0.3s;
+    }
+    .endpoints-toggle.expanded {
+      transform: rotate(180deg);
+    }
+    .endpoint-item {
+      background: #fef5f5;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border-left: 3px solid #d9534f;
+    }
+    .endpoint-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #323232;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+    }
+    .endpoint-icon {
+      margin-right: 5px;
+    }
+    .endpoint-url-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .endpoint-url {
+      font-size: 11px;
+      color: #d9534f;
+      background: white;
+      padding: 6px 8px;
+      border-radius: 3px;
+      word-break: break-all;
+      flex: 1;
+      font-family: 'Courier New', monospace;
+    }
+    .copy-btn {
+      background: #d9534f;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover {
+      background: #c9302c;
+    }
+    .copy-btn:active {
+      background: #ac2925;
+    }
+    .copy-btn.copied {
+      background: #2e7d32;
+    }
+    .endpoints-content {
+      display: none;
+    }
+    .endpoints-content.show {
+      display: block;
+    }
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand"
+    ], function(Map, MapView, FeatureLayer, Legend, Expand) {
+
+      // Dynamically determine baseUrl based on current host
+      const baseUrl = `${window.location.protocol}//${window.location.host}/databricks/rest/services`;
+
+      console.log("🚀 Loading Enterprise-Scale Multi-Geometry Demo");
+      console.log("📍 Using base URL:", baseUrl);
+      console.log("   • 10,000 business points");
+      console.log("   • 5,000 property polygons");
+      console.log("   • 3,000 road linestrings");
+      console.log("   • Total: 18,000 features");
+
+      // Create business layer (points)
+      const businessLayer = new FeatureLayer({
+        url: `${baseUrl}/main.default.koop_large_businesses/FeatureServer/0`,
+        title: "Business Locations (10K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            size: 6,
+            color: [217, 83, 79, 0.7],
+            outline: {
+              color: [255, 255, 255],
+              width: 0.5
+            }
+          }
+        },
+        popupTemplate: {
+          title: "{business_name}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "city", label: "City" },
+                { fieldName: "state", label: "State" },
+                { fieldName: "annual_revenue", label: "Annual Revenue", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "employee_count", label: "Employees" },
+                { fieldName: "objectid", label: "Record ID" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create parcel layer (polygons)
+      const parcelLayer = new FeatureLayer({
+        url: `${baseUrl}/main.default.koop_large_parcels/FeatureServer/0`,
+        title: "Property Parcels (5K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [91, 192, 222, 0.3],
+            outline: {
+              color: [41, 128, 185],
+              width: 1
+            }
+          }
+        },
+        popupTemplate: {
+          title: "Parcel {parcel_id}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "zone_type", label: "Zone Type" },
+                { fieldName: "area_sqm", label: "Area (m²)", format: { digitSeparator: true } },
+                { fieldName: "assessed_value", label: "Assessed Value", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "objectid", label: "Record ID" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create roads layer (linestrings)
+      const roadLayer = new FeatureLayer({
+        url: `${baseUrl}/main.default.koop_large_roads/FeatureServer/0`,
+        title: "Road Segments (3K)",
+        outFields: ["*"],
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-line",
+            color: [240, 173, 78, 0.8],
+            width: 2
+          }
+        },
+        popupTemplate: {
+          title: "{road_name}",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "road_type", label: "Road Type" },
+                { fieldName: "length_m", label: "Length (m)", format: { digitSeparator: true } },
+                { fieldName: "num_lanes", label: "Number of Lanes" },
+                { fieldName: "speed_limit", label: "Speed Limit (mph)" },
+                { fieldName: "objectid", label: "Record ID" }
+              ]
+            }
+          ]
+        }
+      });
+
+      // Create map with all layers
+      const map = new Map({
+        basemap: "gray-vector",
+        layers: [parcelLayer, roadLayer, businessLayer]  // Bottom to top
+      });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-98, 39],
+        zoom: 4
+      });
+
+      // Add legend
+      const legend = new Legend({
+        view: view,
+        style: "card"
+      });
+
+      const legendExpand = new Expand({
+        view: view,
+        content: legend,
+        expanded: false
+      });
+
+      view.ui.add(legendExpand, "bottom-right");
+
+      // Update status
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.innerHTML = `<span class="status-${type}">${message}</span>`;
+      }
+
+      // Load layers and get counts
+      updateStatus("⏳ Loading layers...", "loading");
+
+      Promise.all([
+        businessLayer.load(),
+        parcelLayer.load(),
+        roadLayer.load()
+      ]).then(() => {
+        console.log("✅ All layers loaded");
+        updateStatus("⏳ Querying record counts...", "loading");
+
+        // Query counts for all layers
+        return Promise.all([
+          businessLayer.queryFeatureCount({ where: "1=1" }),
+          parcelLayer.queryFeatureCount({ where: "1=1" }),
+          roadLayer.queryFeatureCount({ where: "1=1" })
+        ]);
+      }).then(([businessCount, parcelCount, roadCount]) => {
+        const totalCount = businessCount + parcelCount + roadCount;
+
+        console.log(`✅ Record counts:`);
+        console.log(`   • Businesses: ${businessCount.toLocaleString()}`);
+        console.log(`   • Parcels: ${parcelCount.toLocaleString()}`);
+        console.log(`   • Roads: ${roadCount.toLocaleString()}`);
+        console.log(`   • Total: ${totalCount.toLocaleString()}`);
+
+        document.getElementById("business-count").textContent = businessCount.toLocaleString();
+        document.getElementById("parcel-count").textContent = parcelCount.toLocaleString();
+        document.getElementById("road-count").textContent = roadCount.toLocaleString();
+        document.getElementById("total-count").textContent = totalCount.toLocaleString();
+
+        updateStatus(`✅ ${totalCount.toLocaleString()} features ready!`, "success");
+      }).catch(err => {
+        console.error("❌ Error loading layers:", err);
+        updateStatus("❌ Failed to load layers", "error");
+      });
+
+      // Layer toggles
+      document.getElementById("toggle-businesses").addEventListener("change", (e) => {
+        businessLayer.visible = e.target.checked;
+      });
+
+      document.getElementById("toggle-parcels").addEventListener("change", (e) => {
+        parcelLayer.visible = e.target.checked;
+      });
+
+      document.getElementById("toggle-roads").addEventListener("change", (e) => {
+        roadLayer.visible = e.target.checked;
+      });
+
+      // Endpoints panel toggle
+      document.getElementById("endpoints-header").addEventListener("click", () => {
+        const content = document.getElementById("endpoints-content");
+        const toggle = document.getElementById("endpoints-toggle");
+        content.classList.toggle("show");
+        toggle.classList.toggle("expanded");
+      });
+
+      // Copy to clipboard functionality
+      function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(() => {
+          const originalText = button.textContent;
+          button.textContent = "✓ Copied!";
+          button.classList.add("copied");
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove("copied");
+          }, 2000);
+        }).catch(err => {
+          console.error("Failed to copy:", err);
+          button.textContent = "Failed";
+          setTimeout(() => {
+            button.textContent = "Copy";
+          }, 2000);
+        });
+      }
+
+      // Attach copy button handlers and update URLs dynamically
+      document.querySelectorAll(".copy-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const url = e.target.dataset.url;
+          copyToClipboard(url, e.target);
+        });
+      });
+
+      // Update endpoint URLs with dynamic baseUrl
+      const businessesUrl = `${baseUrl}/main.default.koop_large_businesses/FeatureServer/0`;
+      const parcelsUrl = `${baseUrl}/main.default.koop_large_parcels/FeatureServer/0`;
+      const roadsUrl = `${baseUrl}/main.default.koop_large_roads/FeatureServer/0`;
+
+      document.querySelector('.endpoint-url').textContent = businessesUrl;
+      document.querySelector('[data-url*="koop_large_businesses"]').dataset.url = businessesUrl;
+
+      document.querySelectorAll('.endpoint-url')[1].textContent = parcelsUrl;
+      document.querySelector('[data-url*="koop_large_parcels"]').dataset.url = parcelsUrl;
+
+      document.querySelectorAll('.endpoint-url')[2].textContent = roadsUrl;
+      document.querySelector('[data-url*="koop_large_roads"]').dataset.url = roadsUrl;
+
+      console.log("✅ Map initialized");
+      console.log("💡 Zoom and pan to see pagination in action!");
+      console.log("💡 Open browser console (F12) for detailed logs");
+    });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+
+  <div id="status">
+    <span class="status-loading">⏳ Loading...</span>
+  </div>
+
+  <div id="infoPanel">
+    <h2>📊 Enterprise-Scale Demo</h2>
+
+    <div class="info-section">
+      <div class="info-title">Total Features in Databricks</div>
+      <div class="total-count" id="total-count">-</div>
+
+      <div class="layer-stat">
+        <span class="layer-name">🔴 Business Locations (Points)</span>
+        <span class="layer-count" id="business-count">-</span>
+      </div>
+      <div class="layer-stat">
+        <span class="layer-name">🔵 Property Parcels (Polygons)</span>
+        <span class="layer-count" id="parcel-count">-</span>
+      </div>
+      <div class="layer-stat">
+        <span class="layer-name">🟠 Road Segments (LineStrings)</span>
+        <span class="layer-count" id="road-count">-</span>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">💡 What This Demonstrates</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <p><strong>Enterprise-Scale Performance:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>18,000 total features across 3 layers</li>
+          <li>3 different geometry types (Point, Polygon, LineString)</li>
+          <li>Automatic pagination for all layers</li>
+          <li>Only loads features in current viewport</li>
+        </ul>
+        <p style="margin-top: 10px;"><strong>Real-World Use Cases:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>Points: Retail stores, sensors, assets</li>
+          <li>Polygons: Property parcels, zones, regions</li>
+          <li>Lines: Roads, utilities, pipelines</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">⚡ Performance at Scale</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <p>This same pattern scales to:</p>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>100,000+ parcel datasets</li>
+          <li>1,000,000+ IoT sensor locations</li>
+          <li>Complex road networks (millions of segments)</li>
+        </ul>
+        <p style="margin-top: 8px;">Pagination keeps queries fast regardless of dataset size!</p>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-title">🎯 Why Multiple Geometry Types Matter</div>
+      <div style="font-size: 12px; line-height: 1.6; color: #323232;">
+        <strong>Polygons have larger payloads than points:</strong>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+          <li>Point: ~50 bytes (just lon/lat)</li>
+          <li>Polygon: 500-5000 bytes (many vertices)</li>
+        </ul>
+        <p style="margin-top: 8px;">This demo proves the provider handles complex geometries efficiently with proper pagination.</p>
+      </div>
+    </div>
+
+    <div id="endpointsSection">
+      <div class="endpoints-header" id="endpoints-header">
+        <div class="info-title">🔗 API Endpoints</div>
+        <span class="endpoints-toggle" id="endpoints-toggle">▼</span>
+      </div>
+      <div class="endpoints-content" id="endpoints-content">
+        <p style="font-size: 11px; color: #6e6e6e; margin-bottom: 10px;">
+          Copy these URLs to add layers directly to ArcGIS Online
+        </p>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🔴</span>
+            Business Locations
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url">http://localhost:8082/databricks/rest/services/main.default.koop_large_businesses/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_large_businesses/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🔵</span>
+            Property Parcels
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url">http://localhost:8082/databricks/rest/services/main.default.koop_large_parcels/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_large_parcels/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div class="endpoint-label">
+            <span class="endpoint-icon">🟠</span>
+            Road Segments
+          </div>
+          <div class="endpoint-url-container">
+            <div class="endpoint-url">http://localhost:8082/databricks/rest/services/main.default.koop_large_roads/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_large_roads/FeatureServer/0">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="layerToggles">
+    <h3>🗂️ Layer Visibility</h3>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-businesses" checked>
+      <div class="layer-color" style="background-color: rgba(217, 83, 79, 0.7);"></div>
+      <label for="toggle-businesses">Business Locations</label>
+    </div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-parcels" checked>
+      <div class="layer-color" style="background-color: rgba(91, 192, 222, 0.5);"></div>
+      <label for="toggle-parcels">Property Parcels</label>
+    </div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-roads" checked>
+      <div class="layer-color" style="background-color: rgba(240, 173, 78, 0.8);"></div>
+      <label for="toggle-roads">Road Segments</label>
+    </div>
+
+    <div style="font-size: 11px; color: #6e6e6e; margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">
+      💡 <strong>Toggle layers on/off</strong> to see each geometry type individually or combined.
+    </div>
+  </div>
+</body>
+</html>

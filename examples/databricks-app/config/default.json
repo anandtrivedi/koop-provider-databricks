@@ -1,7 +1,6 @@
 {
   "objectId": "objectid",
-  "geometryColumn": "geometry_wkt",
-  "geometryFormat": "wkt",
+  "geometryColumn": "geometry",
   "spatialReference": 4326,
   "maxRows": 10000
 }
