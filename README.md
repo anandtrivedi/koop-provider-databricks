@@ -19,7 +19,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for detailed release notes.
 ## Overview
 
 This provider enables you to:
-- Connect to Databricks SQL warehouses and query geospatial tables
+- Connect to Databricks SQL warehouses or general-purpose clusters and query geospatial tables
 - Expose Databricks data as ArcGIS FeatureServer endpoints
 - Support multiple geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)
 - Support H3 spatial filtering for optimized geospatial queries
@@ -31,7 +31,7 @@ This provider enables you to:
 
 - **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Everything from table preparation to deployment and testing
   - Part 1: Preparing your tables (objectid, geometry_wkt, WKT format)
-  - Part 2: Deployment options (Databricks Apps, standalone, Model Serving)
+  - Part 2: Deployment options (Databricks Apps, Docker/Cloud deployment)
   - Part 3: Testing and ArcGIS integration
 - **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Detailed testing guide for ArcGIS Online, Pro, and JavaScript API
 
@@ -46,9 +46,9 @@ This provider enables you to:
 ### Prerequisites
 
 - Node.js (v14 or higher)
-- Access to a Databricks workspace with SQL warehouse
+- Access to a Databricks workspace with SQL warehouse or general-purpose cluster
 - Databricks personal access token
-- Geospatial table with WKT geometry columns
+- Geospatial table with geometry column (supports WKT, WKB, GeoJSON, or native GEOMETRY)
 
 ### Installation
 
@@ -103,6 +103,66 @@ You should see 10 US cities as GeoJSON features!
 
 ---
 
+## Performance Optimization (Optional)
+
+Once your basic setup is working, you can upgrade to **native GEOMETRY format** for best performance:
+
+### Why Upgrade to Native GEOMETRY?
+
+⚡ **2-3x Faster Queries** - No parsing overhead, optimized binary storage
+🚀 **Lower Network Usage** - Most compact representation
+📊 **Better at Scale** - Handles large datasets more efficiently
+
+### Upgrade Steps
+
+**1. Convert Your WKT Column to Native GEOMETRY:**
+
+```sql
+-- Option A: Add new column and populate
+ALTER TABLE main.default.my_table ADD COLUMN geometry GEOMETRY;
+UPDATE main.default.my_table
+SET geometry = ST_GeomFromText(geometry_wkt, 4326);
+
+-- Option B: Create new table with GEOMETRY column
+CREATE TABLE main.default.my_table_optimized AS
+SELECT
+  objectid,
+  ST_GeomFromText(geometry_wkt, 4326) as geometry,
+  other_columns
+FROM main.default.my_table;
+```
+
+**2. Update Configuration:**
+
+```json
+{
+  "objectId": "objectid",
+  "geometryColumn": "geometry",
+  "geometryFormat": "geometry",
+  "spatialReference": 4326,
+  "maxRows": 10000
+}
+```
+
+**3. Restart Server:**
+
+```bash
+npm start
+```
+
+**Result:** Same functionality, but 2-3x faster queries with no other changes needed!
+
+### When to Use Each Format
+
+| Format | Best For | Performance |
+|--------|----------|-------------|
+| **WKT** (default) | Getting started, debugging, easy setup | Good ✓ |
+| **Native GEOMETRY** | Production, large datasets, performance-critical | Excellent ⚡⚡⚡ |
+
+**📖 See [config/README.md](./config/README.md) for details on all supported geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)**
+
+---
+
 ### Configuration
 
 1. Create a `.env` file in the root directory (see `.env.example` for template):
@@ -110,6 +170,8 @@ You should see 10 US cities as GeoJSON features!
    DATABRICKS_TOKEN=your_personal_access_token
    DATABRICKS_SERVER_HOSTNAME=your_workspace.cloud.databricks.com
    DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your_warehouse_id
+   # Or for general-purpose cluster:
+   # DATABRICKS_HTTP_PATH=sql/protocolv1/o/{org-id}/{cluster-id}
    ```
 
 2. Update `config/default.json` with your provider configuration:

@@ -579,6 +579,184 @@ CREATE TABLE nationwide_parcels (
 
 ---
 
+## Multi-Table Considerations
+
+### ⚠️ Important Limitation: Global Configuration
+
+**The configuration is GLOBAL for the entire Koop server instance.** All tables served by the same Koop instance must use the same configuration values:
+
+- Same `geometryColumn` name
+- Same `geometryFormat` type
+- Same `objectId` column name
+- Same `spatialReference`
+- Same `maxRows`
+
+**This means:**
+
+❌ **NOT SUPPORTED:** One table with `geometry_wkt` column and another with `shape` column
+❌ **NOT SUPPORTED:** One table with WKT format and another with WKB format
+❌ **NOT SUPPORTED:** One table with `objectid` and another with `feature_id`
+
+### Workarounds for Mixed Schemas
+
+If you have tables with different column names or formats, you have three options:
+
+#### Option 1: Create VIEWs to Normalize (Recommended)
+
+Create views that rename columns to match your configuration. This is the simplest and most flexible approach.
+
+**Example: Different geometry column names**
+
+```sql
+-- Original tables
+-- Table 1: Has 'geometry_wkt' column
+-- Table 2: Has 'shape' column
+-- Table 3: Has 'geom' column
+
+-- Configure Koop to use 'geometry_wkt'
+-- Then create views for tables that don't match:
+
+CREATE VIEW my_table2_normalized AS
+SELECT
+  objectid,
+  shape AS geometry_wkt,  -- Rename to match config
+  other_columns
+FROM my_table2;
+
+CREATE VIEW my_table3_normalized AS
+SELECT
+  objectid,
+  geom AS geometry_wkt,   -- Rename to match config
+  other_columns
+FROM my_table3;
+
+-- Now expose:
+-- - main.schema.my_table1 (already has geometry_wkt)
+-- - main.schema.my_table2_normalized
+-- - main.schema.my_table3_normalized
+```
+
+**Example: Different geometry formats**
+
+```sql
+-- Original tables
+-- Table 1: Has WKT text in 'geometry_wkt' column
+-- Table 2: Has WKB binary in 'geometry_wkb' column
+-- Table 3: Has native GEOMETRY in 'geometry' column
+
+-- Configure Koop for WKT format
+-- Create views to convert other formats to WKT:
+
+CREATE VIEW my_table2_normalized AS
+SELECT
+  objectid,
+  ST_AsText(ST_GeomFromWKB(geometry_wkb)) AS geometry_wkt,  -- Convert WKB → WKT
+  other_columns
+FROM my_table2;
+
+CREATE VIEW my_table3_normalized AS
+SELECT
+  objectid,
+  ST_AsText(geometry) AS geometry_wkt,  -- Convert GEOMETRY → WKT
+  other_columns
+FROM my_table3;
+```
+
+**Example: Different objectid column names**
+
+```sql
+-- Table 1: Has 'objectid' column
+-- Table 2: Has 'feature_id' column
+-- Table 3: Has 'gid' column
+
+-- Configure Koop to use 'objectid'
+-- Create views for tables that don't match:
+
+CREATE VIEW my_table2_normalized AS
+SELECT
+  feature_id AS objectid,  -- Rename to match config
+  geometry_wkt,
+  other_columns
+FROM my_table2;
+
+CREATE VIEW my_table3_normalized AS
+SELECT
+  gid AS objectid,  -- Rename to match config
+  geometry_wkt,
+  other_columns
+FROM my_table3;
+```
+
+#### Option 2: Deploy Multiple Koop Instances
+
+Deploy separate Koop server instances with different configurations. Each instance can serve tables with a different schema.
+
+**Example deployment:**
+
+```bash
+# Instance 1: WKT format tables on port 8080
+PORT=8080 GEOMETRY_FORMAT=wkt npm start
+
+# Instance 2: WKB format tables on port 8081
+PORT=8081 GEOMETRY_FORMAT=wkb GEOMETRY_COLUMN=geom npm start
+
+# Instance 3: Native GEOMETRY format tables on port 8082
+PORT=8082 GEOMETRY_FORMAT=geometry GEOMETRY_COLUMN=geometry npm start
+```
+
+**Pros:**
+- Each instance optimized for specific table schemas
+- Can use different performance settings (maxRows) per instance
+- Isolates failures - one instance crashing doesn't affect others
+
+**Cons:**
+- More infrastructure to manage
+- Higher resource usage
+- More complex deployment
+
+#### Option 3: Standardize Your Tables
+
+Modify all tables to use the same column names and formats. This is the cleanest long-term solution.
+
+**Example standardization:**
+
+```sql
+-- Standardize all tables to use:
+-- - objectid (INT column)
+-- - geometry_wkt (STRING column with WKT text)
+-- - WGS84 (SRID 4326)
+
+-- For tables with different column names:
+ALTER TABLE my_table2 RENAME COLUMN feature_id TO objectid;
+ALTER TABLE my_table2 RENAME COLUMN shape TO geometry_wkt;
+
+-- For tables with different formats (convert to WKT):
+ALTER TABLE my_table3 ADD COLUMN geometry_wkt STRING;
+UPDATE my_table3 SET geometry_wkt = ST_AsText(geometry);
+ALTER TABLE my_table3 DROP COLUMN geometry;
+```
+
+**Pros:**
+- Simplest configuration (everything matches)
+- Best performance (no conversion overhead from views)
+- Easier to maintain
+
+**Cons:**
+- Requires modifying existing tables
+- May break other applications using those tables
+- One-time migration effort
+
+### Recommendation
+
+For most users, **Option 1 (VIEWs)** is the best choice because:
+- ✅ No modification of original tables
+- ✅ Other applications continue to work unchanged
+- ✅ Flexible - easy to adjust later
+- ✅ Good performance (conversion happens in Databricks, not Koop)
+- ✅ Can mix and match formats as needed
+
+---
+
 ## Additional Resources
 
 - [DATABRICKS_DEPLOYMENT.md](../DATABRICKS_DEPLOYMENT.md) - Complete deployment guide

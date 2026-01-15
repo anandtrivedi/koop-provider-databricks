@@ -15,13 +15,12 @@ This comprehensive guide covers everything you need to prepare your tables, depl
 **Part 2: Deployment**
 2. [Deployment Overview](#2-deployment-overview)
 3. [Architecture](#3-architecture)
-4. [Option 1: Databricks Apps](#4-option-1-databricks-apps-easiest)
-5. [Option 2: Standalone Server](#5-option-2-standalone-koop-server-most-flexible)
-6. [Option 3: Model Serving](#6-option-3-databricks-model-serving-advanced)
+4. [Option 1: Databricks Apps](#4-option-1-databricks-apps-recommended)
+5. [Option 2: Standalone Docker/Cloud Deployment](#5-option-2-standalone-dockercloud-deployment)
 
 **Part 3: Testing & Integration**
-7. [Testing the Deployment](#7-testing-the-deployment)
-8. [Connecting to ArcGIS Online](#8-connecting-to-arcgis-online)
+6. [Testing the Deployment](#6-testing-the-deployment)
+7. [Connecting to ArcGIS Online](#7-connecting-to-arcgis-online)
 
 ---
 
@@ -81,10 +80,13 @@ CREATE TABLE my_table (
 **Purpose:** Stores the spatial location/shape of each feature
 
 **Requirements:**
-- Must be a STRING type containing WKT (Well-Known Text)
-- Must be valid WKT format
+- Can be one of four supported formats (configured via `geometryFormat` setting):
+  - **WKT** (default): STRING column with Well-Known Text, e.g., `'POINT(-122.4 37.8)'`
+  - **WKB**: BINARY column with Well-Known Binary data
+  - **GeoJSON**: STRING column with GeoJSON text
+  - **Native GEOMETRY**: Databricks GEOMETRY type (best performance)
 - Must not be NULL for features you want to display
-- Typically named `geometry_wkt` or `geometry` (configurable)
+- Column name is configurable (defaults to `geometry_wkt`)
 
 **Supported Geometry Types:**
 - `POINT` - Single location (cities, facilities, markers)
@@ -821,9 +823,9 @@ The Koop Databricks Provider can be deployed in multiple ways depending on your 
 
 **Why use Databricks Apps or Model Serving?**
 
-- ✅ **Native integration** - Direct access to Databricks SQL Warehouses without networking config
+- ✅ **Native integration** - Direct access to Databricks SQL Warehouses or clusters without networking config
 - ✅ **Secure** - Uses internal authentication, no need to expose credentials
-- ✅ **Scalable** - Auto-scales with your SQL Warehouse
+- ✅ **Scalable** - Auto-scales with your compute
 - ✅ **Managed** - HTTPS, domains, and hosting handled for you
 
 **Why use Standalone?**
@@ -910,8 +912,8 @@ The Koop Databricks Provider can be deployed in multiple ways depending on your 
 ### Key Components
 
 1. **Koop Server**: Translates between Databricks tables and ArcGIS FeatureServer API
-2. **Databricks Provider**: Custom plugin that queries SQL Warehouse and converts WKT geometries to GeoJSON
-3. **SQL Warehouse**: Serverless compute that reads from Delta tables
+2. **Databricks Provider**: Custom plugin that queries SQL Warehouse/cluster and converts geometries to GeoJSON
+3. **Databricks Compute**: SQL Warehouse or general-purpose cluster that reads from Delta tables
 4. **Delta Tables**: Your geospatial data with WKT geometry columns
 
 ### Data Flow
@@ -970,7 +972,9 @@ In the Databricks Apps UI:
 1. Go to your workspace → Apps → koop-databricks-provider
 2. Click "Configuration"
 3. Add environment variables:
-   - `DATABRICKS_HTTP_PATH`: `/sql/1.0/warehouses/<warehouse-id>`
+   - `DATABRICKS_HTTP_PATH`:
+     - SQL Warehouse: `/sql/1.0/warehouses/<warehouse-id>`
+     - General-purpose cluster: `sql/protocolv1/o/<org-id>/<cluster-id>`
    - `DATABRICKS_TOKEN`: (use Databricks secret scope)
 
 ### Your Public URL
@@ -989,7 +993,7 @@ https://your-workspace.databricksapps.com/your-app/databricks/rest/services/main
 
 ---
 
-## 5. Option 2: Standalone Koop Server (Most Flexible)
+## 5. Option 2: Standalone Docker/Cloud Deployment (Most Flexible)
 
 **Best for:** Maximum control, existing infrastructure, any cloud provider, production deployments
 
@@ -1040,6 +1044,8 @@ koop.server.listen(port, () => {
 # .env file
 DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
 DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
+# Or for general-purpose cluster:
+# DATABRICKS_HTTP_PATH=sql/protocolv1/o/{org-id}/{cluster-id}
 DATABRICKS_TOKEN=your-token
 PORT=8080
 ```
@@ -1068,16 +1074,35 @@ az webapp up --name koop-databricks --resource-group myResourceGroup
 gcloud run deploy koop-databricks --source .
 ```
 
-**Option D: Docker**
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 8080
-CMD ["npm", "start"]
+**Option D: Docker (Tested with e2-demo)**
+
+Build and run with Docker:
+
+```bash
+# Build Docker image
+docker build --platform linux/amd64 -t koop-databricks-provider:latest .
+
+# Run locally
+docker run -d \
+  --name koop-databricks-provider \
+  -p 8080:8080 \
+  -e DATABRICKS_SERVER_HOSTNAME="your-workspace.cloud.databricks.com" \
+  -e DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/your-warehouse-id" \
+  # Or for general-purpose cluster: sql/protocolv1/o/{org-id}/{cluster-id}
+  -e DATABRICKS_TOKEN="your-token" \
+  -e LOG_LEVEL="INFO" \
+  koop-databricks-provider:latest
+
+# Test it
+curl "http://localhost:8080/databricks/rest/info"
 ```
+
+Deploy to any container platform:
+- Docker Swarm
+- Kubernetes
+- AWS ECS/Fargate
+- Azure Container Instances
+- Google Cloud Run
 
 ### Step 5: Configure HTTPS
 
@@ -1107,68 +1132,9 @@ https://koop.your-domain.com/databricks/rest/services/<catalog>.<schema>.<table>
 
 ---
 
-## 6. Option 3: Databricks Model Serving (Advanced)
-
-**Best for:** Advanced users with specific Databricks Model Serving requirements
-
-**Note:** For most users, **Databricks Apps (Option 1)** is simpler and recommended. Use Model Serving only if you have specific requirements that Apps doesn't meet.
-
-### When to Use Model Serving
-
-- You need custom endpoint configuration
-- You're already using Model Serving for other workloads
-- You have specific networking requirements within Databricks
-
-### Step 1: Create Dockerfile
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s CMD node -e "require('http').get('http://localhost:8080/databricks/rest/info', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-CMD ["npm", "start"]
-```
-
-### Step 2: Build and Push Docker Image
-
-```bash
-# Build image
-docker build -t koop-databricks-provider:latest .
-
-# Tag for Databricks
-docker tag koop-databricks-provider:latest \
-  <workspace-url>/koop-databricks-provider:latest
-
-# Push to Databricks
-docker push <workspace-url>/koop-databricks-provider:latest
-```
-
-### Step 3: Create Model Serving Endpoint
-
-```bash
-databricks serving-endpoints create \
-  --name koop-provider \
-  --config '{
-    "served_models": [{
-      "model_name": "koop-databricks-provider",
-      "model_version": "1",
-      "workload_size": "Small",
-      "scale_to_zero_enabled": false
-    }]
-  }'
-```
-
-Your endpoint will be:
-```
-https://<workspace-id>.cloud.databricks.com/serving-endpoints/koop-provider
-```
-
 ---
 
-## 7. Testing the Deployment
+## 6. Testing the Deployment
 
 ### 1. Test Service Info
 
@@ -1200,7 +1166,7 @@ See [ARCGIS_TESTING.md](./ARCGIS_TESTING.md) for comprehensive ArcGIS integratio
 
 ---
 
-## 8. Connecting to ArcGIS Online
+## 7. Connecting to ArcGIS Online
 
 Once deployed, you can add your FeatureServer to ArcGIS Online.
 

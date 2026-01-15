@@ -1,4 +1,4 @@
-# Dockerfile for Databricks Apps / Model Serving
+# Dockerfile for Databricks Apps and Docker deployments
 FROM --platform=linux/amd64 node:18-alpine
 
 # Install build dependencies for native modules
@@ -10,8 +10,8 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (production only for smaller image)
-RUN npm ci --only=production
+# Install dependencies (including Koop CLI from devDependencies)
+RUN npm install
 
 # Bundle app source
 COPY . .
