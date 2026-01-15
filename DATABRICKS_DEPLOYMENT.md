@@ -1074,35 +1074,311 @@ az webapp up --name koop-databricks --resource-group myResourceGroup
 gcloud run deploy koop-databricks --source .
 ```
 
-**Option D: Docker (Tested with e2-demo)**
+**Option D: Docker Deployment (Recommended for Production)**
 
-Build and run with Docker:
+Docker provides the easiest way to deploy Koop with all dependencies pre-configured. This repo includes production-ready Docker files.
+
+#### Quick Start with Docker
+
+**1. Clone the repository:**
+```bash
+git clone https://github.com/anandtrivedi/koop-provider-databricks.git
+cd koop-provider-databricks
+```
+
+**2. Create `.env` file:**
+```bash
+cp .env.example .env
+# Edit .env with your Databricks credentials
+```
+
+**3. Start with Docker Compose (Easiest):**
+```bash
+docker-compose up -d
+```
+
+That's it! Your Koop server is running at `http://localhost:8080`
+
+#### Docker Compose Configuration
+
+The included `docker-compose.yml` provides a production-ready setup:
+
+```yaml
+version: '3.8'
+
+services:
+  koop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABRICKS_SERVER_HOSTNAME=${DATABRICKS_SERVER_HOSTNAME}
+      - DATABRICKS_HTTP_PATH=${DATABRICKS_HTTP_PATH}
+      - DATABRICKS_TOKEN=${DATABRICKS_TOKEN}
+      - PORT=8080
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/databricks/rest/info', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+```
+
+**Features:**
+- ✅ Automatic restart on failure
+- ✅ Health checks for container orchestration
+- ✅ Environment variable configuration
+- ✅ Production-optimized build
+
+#### Manual Docker Commands
+
+If you prefer not to use Docker Compose:
 
 ```bash
 # Build Docker image
 docker build --platform linux/amd64 -t koop-databricks-provider:latest .
 
-# Run locally
+# Run container
 docker run -d \
   --name koop-databricks-provider \
   -p 8080:8080 \
   -e DATABRICKS_SERVER_HOSTNAME="your-workspace.cloud.databricks.com" \
   -e DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/your-warehouse-id" \
-  # Or for general-purpose cluster: sql/protocolv1/o/{org-id}/{cluster-id}
   -e DATABRICKS_TOKEN="your-token" \
   -e LOG_LEVEL="INFO" \
+  --restart unless-stopped \
   koop-databricks-provider:latest
 
-# Test it
+# Check logs
+docker logs -f koop-databricks-provider
+
+# Test the server
 curl "http://localhost:8080/databricks/rest/info"
 ```
 
-Deploy to any container platform:
-- Docker Swarm
-- Kubernetes
-- AWS ECS/Fargate
-- Azure Container Instances
-- Google Cloud Run
+**For general-purpose cluster instead of SQL Warehouse:**
+```bash
+-e DATABRICKS_HTTP_PATH="sql/protocolv1/o/YOUR_ORG_ID/YOUR_CLUSTER_ID"
+```
+
+#### Docker Management Commands
+
+```bash
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+
+# Restart after changes
+docker-compose restart
+
+# Rebuild after code changes
+docker-compose up -d --build
+
+# Check container health
+docker ps
+docker inspect koop-databricks-provider | grep -A 10 Health
+```
+
+#### Deploying to Container Platforms
+
+The Docker image can be deployed to any container platform:
+
+**AWS ECS/Fargate:**
+```bash
+# Push to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+docker tag koop-databricks-provider:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/koop:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/koop:latest
+
+# Deploy to ECS (configure task definition with environment variables)
+```
+
+**Azure Container Instances:**
+```bash
+# Create container group
+az container create \
+  --resource-group myResourceGroup \
+  --name koop-server \
+  --image koop-databricks-provider:latest \
+  --ports 8080 \
+  --environment-variables \
+    DATABRICKS_SERVER_HOSTNAME='your-workspace.cloud.databricks.com' \
+    DATABRICKS_HTTP_PATH='/sql/1.0/warehouses/your-warehouse-id' \
+  --secure-environment-variables \
+    DATABRICKS_TOKEN='your-token'
+```
+
+**Google Cloud Run:**
+```bash
+# Push to GCR
+docker tag koop-databricks-provider:latest gcr.io/your-project/koop:latest
+docker push gcr.io/your-project/koop:latest
+
+# Deploy
+gcloud run deploy koop \
+  --image gcr.io/your-project/koop:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com \
+  --set-env-vars DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id \
+  --set-secrets DATABRICKS_TOKEN=databricks-token:latest
+```
+
+**Kubernetes:**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koop-databricks
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: koop
+  template:
+    metadata:
+      labels:
+        app: koop
+    spec:
+      containers:
+      - name: koop
+        image: koop-databricks-provider:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DATABRICKS_SERVER_HOSTNAME
+          value: "your-workspace.cloud.databricks.com"
+        - name: DATABRICKS_HTTP_PATH
+          value: "/sql/1.0/warehouses/your-warehouse-id"
+        - name: DATABRICKS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: databricks-secrets
+              key: token
+        livenessProbe:
+          httpGet:
+            path: /databricks/rest/info
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: koop-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: koop
+```
+
+**Docker Swarm:**
+```bash
+# Initialize swarm
+docker swarm init
+
+# Deploy stack
+docker stack deploy -c docker-compose.yml koop-stack
+
+# Scale service
+docker service scale koop-stack_koop=3
+```
+
+#### Dockerfile Explained
+
+The included `Dockerfile` is optimized for production:
+
+```dockerfile
+# Multi-arch support (works on M1/M2 Macs and x86)
+FROM --platform=linux/amd64 node:18-alpine
+
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+
+# Install ALL dependencies (includes Koop CLI needed for runtime)
+RUN npm install
+
+# Bundle app source
+COPY . .
+
+# Set environment variables
+ENV PORT=8080
+ENV NODE_ENV=production
+
+# Expose port
+EXPOSE 8080
+
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/databricks/rest/info', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start the application
+CMD [ "npm", "start" ]
+```
+
+**Key features:**
+- ✅ Alpine Linux base (small image size)
+- ✅ Includes Koop CLI (required for runtime)
+- ✅ Health check endpoint
+- ✅ Multi-architecture support
+- ✅ Production environment settings
+
+#### Troubleshooting Docker Deployment
+
+**Container exits immediately:**
+```bash
+# Check logs
+docker logs koop-databricks-provider
+
+# Common issues:
+# 1. Missing environment variables
+# 2. Invalid Databricks credentials
+# 3. Port 8080 already in use
+```
+
+**Cannot connect to Databricks:**
+```bash
+# Test connectivity from inside container
+docker exec -it koop-databricks-provider sh
+apk add curl
+curl -I https://${DATABRICKS_SERVER_HOSTNAME}
+```
+
+**Health check failing:**
+```bash
+# Check if server is responding
+docker exec koop-databricks-provider wget -O- http://localhost:8080/databricks/rest/info
+```
+
+**Performance issues:**
+```bash
+# Increase container resources in docker-compose.yml
+deploy:
+  resources:
+    limits:
+      cpus: '2'
+      memory: 2G
+    reservations:
+      cpus: '1'
+      memory: 1G
+```
 
 ### Step 5: Configure HTTPS
 
