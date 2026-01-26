@@ -44,9 +44,23 @@ Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   logger.info(`${thisTask}> Received request: ${req.url}`)
 
-  const token = process.env.DATABRICKS_TOKEN
-  const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
-  const httpPath = process.env.DATABRICKS_HTTP_PATH
+  // Get credentials from request (set by authorize.js if auth enabled)
+  // or fall back to environment variables (if auth disabled)
+  let token, serverHostname, httpPath
+
+  if (req.databricksCredentials) {
+    // Use credentials from authenticated session
+    token = req.databricksCredentials.token
+    serverHostname = req.databricksCredentials.serverHostname
+    httpPath = req.databricksCredentials.httpPath
+    logger.info(`${thisTask}> Using authenticated credentials`)
+  } else {
+    // Fall back to environment variables (auth disabled)
+    token = process.env.DATABRICKS_TOKEN
+    serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
+    httpPath = process.env.DATABRICKS_HTTP_PATH
+    logger.info(`${thisTask}> Using environment variable credentials`)
+  }
 
   if (!token || !serverHostname || !httpPath) {
     return callback(new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
