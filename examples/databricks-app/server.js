@@ -12,7 +12,8 @@
  */
 
 const Koop = require('@koopjs/koop-core')
-const databricksProvider = require('@databricks/koop-provider')
+// Use local provider-lib with authentication support
+const databricksProvider = require('./provider-lib')
 const express = require('express')
 const path = require('path')
 const fs = require('fs')

@@ -1,0 +1,52 @@
+{
+  "clients": {
+    "EXAMPLE-API-KEY-REPLACE-WITH-YOUR-OWN": {
+      "name": "Example Client - Production",
+      "enabled": true,
+      "databricks": {
+        "token": "dapi1234567890abcdef...",
+        "serverHostname": "your-workspace.cloud.databricks.com",
+        "httpPath": "/sql/1.0/warehouses/abc123xyz456"
+      }
+    },
+    "ANOTHER-EXAMPLE-API-KEY-REPLACE-ME": {
+      "name": "Example Client - Development",
+      "enabled": false,
+      "databricks": {
+        "token": "dapi9876543210fedcba...",
+        "serverHostname": "dev-workspace.cloud.databricks.com",
+        "httpPath": "/sql/1.0/warehouses/dev789xyz012"
+      }
+    }
+  },
+  "_comments": [
+    "This is an example authentication configuration file.",
+    "",
+    "To use API key authentication:",
+    "1. Copy this file to config/auth.json (gitignored)",
+    "2. Generate secure API keys using: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    "3. Replace the example API keys with your generated keys",
+    "4. Add your Databricks credentials for each API key",
+    "5. Set AUTH_MODE=enabled in your .env file",
+    "",
+    "Fields:",
+    "- clients: Object mapping API keys to Databricks credentials",
+    "- name: Friendly name for the client (for logging)",
+    "- enabled: Set to false to temporarily disable an API key",
+    "- databricks.token: Databricks personal access token (PAT)",
+    "- databricks.serverHostname: Databricks workspace hostname",
+    "- databricks.httpPath: SQL Warehouse HTTP path",
+    "",
+    "Security notes:",
+    "- NEVER commit config/auth.json to git (it's in .gitignore)",
+    "- Store production credentials in environment variables or secrets manager",
+    "- Rotate API keys and Databricks tokens regularly",
+    "- Use different API keys for different clients/applications",
+    "",
+    "To generate an API key, run:",
+    "  node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    "",
+    "Example output:",
+    "  a7f8e9d4c6b2a1f0e8d7c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4"
+  ]
+}

@@ -25,6 +25,14 @@ env:
     value: "true"
   # Note: PORT is automatically set to 8000 by Databricks Apps platform
 
+  # Authentication configuration (optional - see docs/AUTHENTICATION.md)
+  # - name: AUTH_MODE
+  #   value: "disabled"  # or "enabled" for API key authentication
+  # - name: TOKEN_EXPIRATION_SECONDS
+  #   value: "3600"      # 1 hour default
+  # - name: KOOP_AUTH_HTTP
+  #   value: "false"     # Use HTTPS for token endpoints (recommended)
+
 # RECOMMENDED: For production, use secrets instead of hardcoding tokens:
 # env:
 #   - name: DATABRICKS_TOKEN
