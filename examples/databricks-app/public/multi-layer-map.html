@@ -228,7 +228,7 @@
 
       // Define layers with styling
       const citiesLayer = new FeatureLayer({
-        url: `${baseUrl}/main.default.koop_test_cities/FeatureServer/0`,
+        url: `${baseUrl}/atrivedi.geospatial.koop_test_cities/FeatureServer/0`,
         title: "Cities",
         outFields: ["*"],
         renderer: {
@@ -265,7 +265,7 @@
       });
 
       const highwaysLayer = new FeatureLayer({
-        url: `${baseUrl}/main.default.koop_test_highways/FeatureServer/0`,
+        url: `${baseUrl}/atrivedi.geospatial.koop_test_highways/FeatureServer/0`,
         title: "Interstate Highways",
         outFields: ["*"],
         renderer: {
@@ -299,7 +299,7 @@
       });
 
       const statesLayer = new FeatureLayer({
-        url: `${baseUrl}/main.default.koop_test_states/FeatureServer/0`,
+        url: `${baseUrl}/atrivedi.geospatial.koop_test_states/FeatureServer/0`,
         title: "States",
         outFields: ["*"],
         renderer: {
@@ -340,7 +340,7 @@
       });
 
       const parksLayer = new FeatureLayer({
-        url: `${baseUrl}/main.default.koop_test_parks/FeatureServer/0`,
+        url: `${baseUrl}/atrivedi.geospatial.koop_test_parks/FeatureServer/0`,
         title: "National Parks",
         outFields: ["*"],
         renderer: {
@@ -539,17 +539,17 @@
       });
 
       // Update endpoint URLs with dynamic baseUrl
-      document.getElementById("cities-url").textContent = `${baseUrl}/main.default.koop_test_cities/FeatureServer/0`;
-      document.querySelector('[data-url*="koop_test_cities"]').dataset.url = `${baseUrl}/main.default.koop_test_cities/FeatureServer/0`;
+      document.getElementById("cities-url").textContent = `${baseUrl}/atrivedi.geospatial.koop_test_cities/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_cities"]').dataset.url = `${baseUrl}/atrivedi.geospatial.koop_test_cities/FeatureServer/0`;
 
-      document.getElementById("highways-url").textContent = `${baseUrl}/main.default.koop_test_highways/FeatureServer/0`;
-      document.querySelector('[data-url*="koop_test_highways"]').dataset.url = `${baseUrl}/main.default.koop_test_highways/FeatureServer/0`;
+      document.getElementById("highways-url").textContent = `${baseUrl}/atrivedi.geospatial.koop_test_highways/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_highways"]').dataset.url = `${baseUrl}/atrivedi.geospatial.koop_test_highways/FeatureServer/0`;
 
-      document.getElementById("states-url").textContent = `${baseUrl}/main.default.koop_test_states/FeatureServer/0`;
-      document.querySelector('[data-url*="koop_test_states"]').dataset.url = `${baseUrl}/main.default.koop_test_states/FeatureServer/0`;
+      document.getElementById("states-url").textContent = `${baseUrl}/atrivedi.geospatial.koop_test_states/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_states"]').dataset.url = `${baseUrl}/atrivedi.geospatial.koop_test_states/FeatureServer/0`;
 
-      document.getElementById("parks-url").textContent = `${baseUrl}/main.default.koop_test_parks/FeatureServer/0`;
-      document.querySelector('[data-url*="koop_test_parks"]').dataset.url = `${baseUrl}/main.default.koop_test_parks/FeatureServer/0`;
+      document.getElementById("parks-url").textContent = `${baseUrl}/atrivedi.geospatial.koop_test_parks/FeatureServer/0`;
+      document.querySelector('[data-url*="koop_test_parks"]').dataset.url = `${baseUrl}/atrivedi.geospatial.koop_test_parks/FeatureServer/0`;
 
       console.log("✅ Map initialized successfully");
     });
@@ -637,8 +637,8 @@
             Cities
           </div>
           <div class="endpoint-url-container">
-            <div class="endpoint-url" id="cities-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0</div>
-            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0">Copy</button>
+            <div class="endpoint-url" id="cities-url">http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_cities/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_cities/FeatureServer/0">Copy</button>
           </div>
         </div>
 
@@ -648,8 +648,8 @@
             Highways
           </div>
           <div class="endpoint-url-container">
-            <div class="endpoint-url" id="highways-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_highways/FeatureServer/0</div>
-            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_highways/FeatureServer/0">Copy</button>
+            <div class="endpoint-url" id="highways-url">http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_highways/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_highways/FeatureServer/0">Copy</button>
           </div>
         </div>
 
@@ -659,8 +659,8 @@
             States
           </div>
           <div class="endpoint-url-container">
-            <div class="endpoint-url" id="states-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_states/FeatureServer/0</div>
-            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_states/FeatureServer/0">Copy</button>
+            <div class="endpoint-url" id="states-url">http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_states/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_states/FeatureServer/0">Copy</button>
           </div>
         </div>
 
@@ -670,8 +670,8 @@
             Parks
           </div>
           <div class="endpoint-url-container">
-            <div class="endpoint-url" id="parks-url">http://localhost:8082/databricks/rest/services/main.default.koop_test_parks/FeatureServer/0</div>
-            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/main.default.koop_test_parks/FeatureServer/0">Copy</button>
+            <div class="endpoint-url" id="parks-url">http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_parks/FeatureServer/0</div>
+            <button class="copy-btn" data-url="http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_parks/FeatureServer/0">Copy</button>
           </div>
         </div>
       </div>

@@ -12,13 +12,11 @@
 # Environment variables for the app
 env:
   - name: DATABRICKS_SERVER_HOSTNAME
-    value: your-workspace.cloud.databricks.com
+    value: e2-demo-field-eng.cloud.databricks.com
   - name: DATABRICKS_HTTP_PATH
-    value: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID
-    # Or for general-purpose cluster:
-    # value: sql/protocolv1/o/YOUR_ORG_ID/YOUR_CLUSTER_ID
+    value: /sql/1.0/warehouses/862f1d757f0424f7
   - name: DATABRICKS_TOKEN
-    value: YOUR_DATABRICKS_TOKEN
+    value: YOUR_DATABRICKS_TOKEN_HERE
   - name: LOG_LEVEL
     value: INFO
   - name: SERVE_DEMO_PAGES
@@ -26,8 +24,8 @@ env:
   # Note: PORT is automatically set to 8000 by Databricks Apps platform
 
   # Authentication configuration (optional - see docs/AUTHENTICATION.md)
-  # - name: AUTH_MODE
-  #   value: "disabled"  # or "enabled" for API key authentication
+  - name: AUTH_MODE
+    value: "disabled"  # Start with disabled mode for initial testing
   # - name: TOKEN_EXPIRATION_SECONDS
   #   value: "3600"      # 1 hour default
   # - name: KOOP_AUTH_HTTP

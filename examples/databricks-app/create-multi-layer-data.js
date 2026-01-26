@@ -33,10 +33,10 @@ async function createTestLayers() {
     // 1. DROP existing tables
     console.log('🗑️  Dropping existing test tables...');
     const tablesToDrop = [
-      'main.default.koop_test_cities',
-      'main.default.koop_test_highways',
-      'main.default.koop_test_states',
-      'main.default.koop_test_parks'
+      'atrivedi.geospatial.koop_test_cities',
+      'atrivedi.geospatial.koop_test_highways',
+      'atrivedi.geospatial.koop_test_states',
+      'atrivedi.geospatial.koop_test_parks'
     ];
 
     for (const table of tablesToDrop) {
@@ -52,7 +52,7 @@ async function createTestLayers() {
     console.log('\n📍 Creating koop_test_cities table with 50 cities...');
 
     await session.executeStatement(`
-      CREATE TABLE main.default.koop_test_cities (
+      CREATE TABLE atrivedi.geospatial.koop_test_cities (
         objectid INT,
         city_name STRING,
         state STRING,
@@ -125,7 +125,7 @@ async function createTestLayers() {
 
     for (const city of cities) {
       await session.executeStatement(`
-        INSERT INTO main.default.koop_test_cities VALUES (
+        INSERT INTO atrivedi.geospatial.koop_test_cities VALUES (
           ${city.id},
           '${city.name}',
           '${city.state}',
@@ -140,7 +140,7 @@ async function createTestLayers() {
     console.log('\n🛣️  Creating koop_test_highways table...');
 
     await session.executeStatement(`
-      CREATE TABLE main.default.koop_test_highways (
+      CREATE TABLE atrivedi.geospatial.koop_test_highways (
         objectid INT,
         highway_name STRING,
         highway_number STRING,
@@ -164,7 +164,7 @@ async function createTestLayers() {
 
     for (const hwy of highways) {
       await session.executeStatement(`
-        INSERT INTO main.default.koop_test_highways VALUES (
+        INSERT INTO atrivedi.geospatial.koop_test_highways VALUES (
           ${hwy.id},
           '${hwy.name}',
           '${hwy.num}',
@@ -179,7 +179,7 @@ async function createTestLayers() {
     console.log('\n🗺️  Creating koop_test_states table...');
 
     await session.executeStatement(`
-      CREATE TABLE main.default.koop_test_states (
+      CREATE TABLE atrivedi.geospatial.koop_test_states (
         objectid INT,
         state_name STRING,
         abbreviation STRING,
@@ -204,7 +204,7 @@ async function createTestLayers() {
 
     for (const state of states) {
       await session.executeStatement(`
-        INSERT INTO main.default.koop_test_states VALUES (
+        INSERT INTO atrivedi.geospatial.koop_test_states VALUES (
           ${state.id},
           '${state.name}',
           '${state.abbr}',
@@ -220,7 +220,7 @@ async function createTestLayers() {
     console.log('\n🏞️  Creating koop_test_parks table...');
 
     await session.executeStatement(`
-      CREATE TABLE main.default.koop_test_parks (
+      CREATE TABLE atrivedi.geospatial.koop_test_parks (
         objectid INT,
         park_name STRING,
         state STRING,
@@ -245,7 +245,7 @@ async function createTestLayers() {
 
     for (const park of parks) {
       await session.executeStatement(`
-        INSERT INTO main.default.koop_test_parks VALUES (
+        INSERT INTO atrivedi.geospatial.koop_test_parks VALUES (
           ${park.id},
           '${park.name}',
           '${park.state}',
@@ -265,10 +265,10 @@ async function createTestLayers() {
     console.log('   • koop_test_states: 5 states (Polygons)');
     console.log('   • koop_test_parks: 10 national parks (Points)');
     console.log('\n🌐 Test these layers at:');
-    console.log('   http://localhost:8082/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0');
-    console.log('   http://localhost:8082/databricks/rest/services/main.default.koop_test_highways/FeatureServer/0');
-    console.log('   http://localhost:8082/databricks/rest/services/main.default.koop_test_states/FeatureServer/0');
-    console.log('   http://localhost:8082/databricks/rest/services/main.default.koop_test_parks/FeatureServer/0');
+    console.log('   http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_cities/FeatureServer/0');
+    console.log('   http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_highways/FeatureServer/0');
+    console.log('   http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_states/FeatureServer/0');
+    console.log('   http://localhost:8082/databricks/rest/services/atrivedi.geospatial.koop_test_parks/FeatureServer/0');
 
     await session.close();
     await connection.close();
