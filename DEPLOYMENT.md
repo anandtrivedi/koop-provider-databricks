@@ -49,24 +49,29 @@ Koop converts to GeoJSON
 ArcGIS displays on map
 ```
 
-### Why Databricks Apps Doesn't Work
+### Databricks Apps and OAuth
 
-**Question:** Can I deploy to Databricks Apps instead of Render.com?
+**Can I deploy to Databricks Apps instead of Render.com?**
 
-**Answer:** ❌ **NO** - Databricks Apps enforces OAuth authentication that blocks ArcGIS Online.
+At this point, OAuth is required for Databricks Apps, so we can't host Koop there for ArcGIS Online compatibility.
 
-**The Problem:**
-- Databricks Apps requires browser-based OAuth login
-- ArcGIS Online makes programmatic API requests (no browser)
-- Requests get blocked with 302 redirect before reaching your app
-- This happens even if AUTH_MODE=disabled in your Koop config
+**From Databricks documentation:**
 
-**The Solution:**
-Deploy to a platform where you control the HTTP endpoint:
-- ✅ Render.com (testing/demo)
-- ✅ AWS EC2 / Azure VM (production)
-- ✅ Docker containers (any cloud)
-- ✅ Kubernetes clusters
+> "The underlying authentication and authorization for Databricks Apps is always based on OAuth 2.0; you cannot globally switch off OAuth as the foundation for app authentication."
+
+**Why this affects ArcGIS Online:**
+- Databricks Apps requires OAuth 2.0 authentication
+- OAuth requires browser-based login
+- ArcGIS Online makes programmatic API requests without a browser
+- Requests are redirected to a login page before reaching the Koop application
+
+**Note:** You can disable third-party OAuth integrations (like dbt, Power BI, Tableau), but not the core Databricks Apps authentication.
+
+**Alternative deployment options:**
+- Render.com (free tier, good for testing)
+- AWS EC2 or Azure VM (production)
+- Docker containers
+- Kubernetes clusters
 
 ---
 
