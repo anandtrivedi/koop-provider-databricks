@@ -15,7 +15,7 @@ const tokenStore = new Map()
 // Token expiration time (in seconds)
 const TOKEN_EXPIRATION = parseInt(process.env.TOKEN_EXPIRATION_SECONDS) || 3600 // 1 hour default
 
-module.exports = async (req) => {
+const authenticate = async (req) => {
   // If auth is disabled, return error (shouldn't reach here)
   if (!isAuthEnabled()) {
     const error = new Error('Authentication is disabled. No token required.')
@@ -86,5 +86,6 @@ function cleanupExpiredTokens () {
   }
 }
 
-// Export token store for use in authorize.js
+// Export authenticate function as default and tokenStore as named export
+module.exports = authenticate
 module.exports.tokenStore = tokenStore
