@@ -46,7 +46,7 @@ Model.prototype.getData = function (req, callback) {
 
   // Get credentials from request (set by authorize.js if auth enabled)
   // or fall back to environment variables (if auth disabled)
-  let token, serverHostname, httpPath
+  let token, serverHostname, httpPath, clientId, clientSecret
 
   if (req.databricksCredentials) {
     // Use credentials from authenticated session
@@ -57,15 +57,24 @@ Model.prototype.getData = function (req, callback) {
   } else {
     // Fall back to environment variables (auth disabled)
     token = process.env.DATABRICKS_TOKEN
+    clientId = process.env.DATABRICKS_CLIENT_ID
+    clientSecret = process.env.DATABRICKS_CLIENT_SECRET
     serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
     httpPath = process.env.DATABRICKS_HTTP_PATH
     logger.info(`${thisTask}> Using environment variable credentials`)
   }
 
-  if (!token || !serverHostname || !httpPath) {
-    return callback(new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
-      'Check the environment variables DATABRICKS_TOKEN, ' +
-      'DATABRICKS_SERVER_HOSTNAME, and DATABRICKS_HTTP_PATH.'))
+  // Check if Service Principal credentials are provided
+  const useServicePrincipal = clientId && clientSecret
+
+  if (!serverHostname || !httpPath) {
+    return callback(new Error('Cannot find Server Hostname or HTTP Path. ' +
+      'Check the environment variables DATABRICKS_SERVER_HOSTNAME and DATABRICKS_HTTP_PATH.'))
+  }
+
+  if (!useServicePrincipal && !token) {
+    return callback(new Error('Cannot find authentication credentials. ' +
+      'Provide either DATABRICKS_TOKEN or both DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET.'))
   }
 
   const table = req.params.id
@@ -76,10 +85,26 @@ Model.prototype.getData = function (req, callback) {
   }
 
   const client = new DBSQLClient()
-  const connectOptions = {
-    token: token,
-    host: serverHostname,
-    path: httpPath
+  let connectOptions
+
+  if (useServicePrincipal) {
+    // Use Service Principal (OAuth2 M2M) authentication
+    logger.info(`${thisTask}> Using Service Principal authentication`)
+    connectOptions = {
+      host: serverHostname,
+      path: httpPath,
+      authType: 'databricks-oauth',
+      oauthClientId: clientId,
+      oauthClientSecret: clientSecret
+    }
+  } else {
+    // Use PAT token authentication
+    logger.info(`${thisTask}> Using PAT token authentication`)
+    connectOptions = {
+      host: serverHostname,
+      path: httpPath,
+      token: token
+    }
   }
 
   client.connect(connectOptions)
