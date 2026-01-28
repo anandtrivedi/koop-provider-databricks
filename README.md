@@ -29,11 +29,12 @@ This provider enables you to:
 
 ### Core Guides
 
-- **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Everything from table preparation to deployment and testing
-  - Part 1: Preparing your tables (objectid, geometry_wkt, WKT format)
-  - Part 2: Deployment options (Databricks Apps, Docker/Cloud deployment)
-  - Part 3: Testing and ArcGIS integration
-- **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Detailed testing guide for ArcGIS Online, Pro, and JavaScript API
+- **[Complete Deployment Guide](./DEPLOYMENT.md)** - Everything from deployment to authentication and troubleshooting
+  - Databricks authentication (PAT tokens and Service Principals)
+  - Deployment options (Render.com, AWS EC2, Docker, Kubernetes)
+  - Data requirements and table preparation
+  - Optional authentication (AUTH_MODE)
+  - Security considerations and best practices
 
 ### External Resources
 
@@ -225,7 +226,7 @@ SELECT
 FROM my_existing_cities
 ```
 
-**📖 For complete table preparation guide, see [DATABRICKS_DEPLOYMENT.md - Part 1: Table Preparation](./DATABRICKS_DEPLOYMENT.md#1-preparing-your-tables)**
+**📖 For complete table preparation guide, see [DEPLOYMENT.md - Data Requirements](./DEPLOYMENT.md#data-requirements)**
 
 ### Running the Server
 
@@ -484,7 +485,7 @@ SELECT
 FROM catalog.schema.cities_with_geometry;
 ```
 
-**📖 See [DATABRICKS_DEPLOYMENT.md - Scenario 2](./DATABRICKS_DEPLOYMENT.md#scenario-2-table-has-native-geometry-column) for more details**
+**📖 See [DEPLOYMENT.md - Data Requirements](./DEPLOYMENT.md#data-requirements) for more details**
 
 ## Common Pitfalls for Beginners
 

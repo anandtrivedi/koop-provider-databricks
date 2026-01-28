@@ -759,7 +759,7 @@ For most users, **Option 1 (VIEWs)** is the best choice because:
 
 ## Additional Resources
 
-- [DATABRICKS_DEPLOYMENT.md](../DATABRICKS_DEPLOYMENT.md) - Complete deployment guide
+- [DEPLOYMENT.md](../DEPLOYMENT.md) - Complete deployment guide
 - [Well-Known Text (WKT) Specification](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry)
 - [EPSG Spatial Reference Codes](https://epsg.io/)
 - [Databricks Spatial Functions](https://docs.databricks.com/sql/language-manual/sql-ref-functions-builtin.html#spatial-functions)

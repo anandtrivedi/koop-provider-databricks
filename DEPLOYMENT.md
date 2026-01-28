@@ -202,6 +202,67 @@ Deploy to:
 
 ---
 
+## Databricks Authentication
+
+### Option 1: Personal Access Token (PAT)
+
+**Best for:** Quick testing and single-user deployments
+
+Set environment variables:
+```bash
+DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
+DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
+DATABRICKS_TOKEN=dapi_your_token  # gitleaks:allow
+```
+
+### Option 2: Service Principal (OAuth2 M2M)
+
+**Best for:** Production deployments and automation
+
+Service Principals provide secure, programmatic authentication without requiring personal credentials.
+
+**Setup Steps:**
+
+1. **Create Service Principal in Databricks:**
+   - Go to Admin Console → Service Principals
+   - Click "Add Service Principal"
+   - Name it (e.g., "koop-esri")
+   - Note the Application ID (Client ID)
+
+2. **Generate OAuth Secret:**
+   - Click on the Service Principal
+   - Go to "Secrets" tab
+   - Generate new secret
+   - Copy the secret (only shown once!)
+
+3. **Grant Permissions:**
+   ```sql
+   -- Grant warehouse access
+   GRANT USAGE ON WAREHOUSE my_warehouse TO `koop-esri`;
+
+   -- Grant schema access
+   GRANT USAGE, SELECT ON SCHEMA my_catalog.geospatial TO `koop-esri`;
+   ```
+
+4. **Configure Environment Variables:**
+   ```bash
+   DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
+   DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
+   DATABRICKS_CLIENT_ID=f2229ae7-d6a7-4fa3-ab7c-cfddc08c384e  # gitleaks:allow
+   DATABRICKS_CLIENT_SECRET=dose272cec7cc940bc6c27831f23da169d43  # gitleaks:allow
+   ```
+
+**Benefits:**
+- ✅ No personal credentials required
+- ✅ Credentials don't expire with user accounts
+- ✅ Fine-grained permissions
+- ✅ Auditable in Databricks logs
+- ✅ Production-ready security
+
+**Note:** The provider automatically detects whether to use PAT token or Service Principal based on which environment variables are set. Service Principal credentials take precedence.
+
+---
+
 ## Authentication (Optional)
 
 ### When to Enable Authentication
@@ -348,21 +409,62 @@ https://abc123.ngrok.io/databricks/rest/services/schema.table/FeatureServer/0
 
 ## Data Requirements
 
+### Any Table Can Be Exposed
+
+**Important:** ANY Databricks table can be exposed as a Koop layer as long as it has a geometry column. You don't need special table structures or schemas - just add your geospatial data to any existing or new table.
+
 ### Table Schema
 
-Your Databricks tables must have:
-
-1. **Geometry column** (one of):
-   - `geometry_wkt` (WKT format) - Recommended
-   - `geometry` (WKT format)
-   - `geom` (WKT format)
-   - `wkt` (WKT format)
+**Required:**
+1. **One geometry column** containing spatial data in one of these formats:
+   - WKT (Well-Known Text) - e.g., `'POINT(-118.2437 34.0522)'` - **Recommended**
+   - WKB (Well-Known Binary)
+   - GeoJSON string
+   - Native Databricks GEOMETRY type
 
 2. **Geometry types supported:**
    - `POINT(lon lat)` - For point features
    - `LINESTRING(...)` - For lines/polylines
    - `POLYGON(...)` - For polygons
    - `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`
+
+### Geometry Column Name Configuration
+
+**Default column name:** `geometry_wkt`
+
+**Configurable via environment variable:**
+```bash
+GEOMETRY_COLUMN=my_geom_column  # Use any column name you want
+```
+
+**Important Limitation:** All tables exposed through this Koop instance must use the **same geometry column name**. This is a global setting, not per-table.
+
+**Example scenarios:**
+
+✅ **Allowed** - All tables use same column name:
+```
+sales.regions.states          → geometry_wkt column
+sales.regions.counties        → geometry_wkt column
+sales.regions.zip_codes       → geometry_wkt column
+```
+
+❌ **Not allowed** - Different column names per table:
+```
+sales.regions.states          → geometry_wkt column
+sales.regions.counties        → geom column         (different name!)
+sales.regions.zip_codes       → location column     (different name!)
+```
+
+**Workaround:** If your tables use different column names, you can create views with standardized names:
+```sql
+CREATE VIEW sales.koop_view.states AS
+SELECT *, geometry_wkt AS geom FROM sales.regions.states;
+
+CREATE VIEW sales.koop_view.counties AS
+SELECT *, county_geom AS geom FROM sales.regions.counties;
+```
+
+Then set `GEOMETRY_COLUMN=geom` and expose the views instead of the original tables.
 
 ### Example Table Creation
 
