@@ -22,7 +22,6 @@ This provider enables you to:
 - Connect to Databricks SQL warehouses or general-purpose clusters and query geospatial tables
 - Expose Databricks data as ArcGIS FeatureServer endpoints
 - Support multiple geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)
-- Support H3 spatial filtering for optimized geospatial queries
 - Serve data in GeoJSON format compatible with ArcGIS clients
 
 ## Documentation
