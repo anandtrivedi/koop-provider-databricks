@@ -47,11 +47,11 @@ Choose the deployment method that best fits your needs:
 
 | Option | Difficulty | Best For | Guide |
 |--------|-----------|----------|-------|
-| **Docker Compose** | Easy | Quick local testing, single-command deployment | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
-| **Render.com** | Easy | Free cloud hosting, automatic HTTPS, zero infrastructure | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
-| **AWS EC2** | Medium | AWS infrastructure, full control, lessons learned included | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **Render.com** | Easiest | Free tier, automatic HTTPS, zero infrastructure, testing/small prod | [DATABRICKS_DEPLOYMENT.md - Render.com](./DATABRICKS_DEPLOYMENT.md#option-d-rendercom-easiest---free-tier-with-auto-https) |
+| **Docker Compose** | Easy | Quick local testing, single-command deployment | [DATABRICKS_DEPLOYMENT.md - Docker](./DATABRICKS_DEPLOYMENT.md#option-e-docker-deployment-recommended-for-production) |
+| **AWS EC2** | Medium | AWS infrastructure, full control, lessons learned included | [DATABRICKS_DEPLOYMENT.md - AWS](./DATABRICKS_DEPLOYMENT.md#option-a-aws-ec2-ecs-lambda) |
 | **Kubernetes** | Medium | Production-ready, auto-scaling, works on EKS/GKE/AKS | [k8s/README.md](./k8s/README.md) |
-| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [DATABRICKS_DEPLOYMENT.md - Docker](./DATABRICKS_DEPLOYMENT.md#option-e-docker-deployment-recommended-for-production) |
 | **Standalone** | Medium | Custom Node.js hosting, existing infrastructure | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
 
 **Quick recommendations:**

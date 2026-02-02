@@ -817,11 +817,13 @@ The Koop Databricks Provider can be deployed in multiple ways depending on your 
 
 | Option | Difficulty | Best For | Detailed Guide |
 |--------|-----------|----------|----------------|
-| **Docker Compose** | Easy | Quick local testing, single-command deployment | [Section 4 - Docker](#option-d-docker-deployment-recommended-for-production) |
-| **Render.com/Cloud** | Easy | Free tier hosting, automatic HTTPS, zero infrastructure | [Section 4 - Standalone](#4-standalone-dockercloud-deployment) |
-| **AWS EC2** | Medium | AWS infrastructure, full control, real-world lessons | [Section 4 - AWS EC2](#aws-ec2-deployment) |
+| **Render.com** | Easiest | Free tier, automatic HTTPS, zero infrastructure, testing/small prod | [Section 4 - Render.com](#option-d-rendercom-easiest---free-tier-with-auto-https) |
+| **Docker Compose** | Easy | Quick local testing, single-command deployment | [Section 4 - Docker](#option-e-docker-deployment-recommended-for-production) |
+| **AWS EC2** | Medium | AWS infrastructure, full control, real-world lessons | [Section 4 - AWS](#option-a-aws-ec2-ecs-lambda) |
+| **Azure** | Medium | Azure infrastructure, App Service, Container Instances | [Section 4 - Azure](#option-b-azure-app-service-container-instances) |
+| **GCP** | Medium | Google Cloud, Cloud Run, Compute Engine | [Section 4 - GCP](#option-c-gcp-compute-engine-cloud-run) |
+| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [Section 4 - Docker](#option-e-docker-deployment-recommended-for-production) |
 | **Kubernetes** | Medium | Production-ready, auto-scaling, EKS/GKE/AKS/on-prem | [k8s/README.md](./k8s/README.md) |
-| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [Section 4 - Docker](#option-d-docker-deployment-recommended-for-production) |
 | **Standalone Node.js** | Medium | Custom hosting, existing infrastructure | [Section 4 - Standalone](#4-standalone-dockercloud-deployment) |
 
 **Quick Recommendations:**
@@ -1066,7 +1068,128 @@ az webapp up --name koop-databricks --resource-group myResourceGroup
 gcloud run deploy koop-databricks --source .
 ```
 
-**Option D: Docker Deployment (Recommended for Production)**
+**Option D: Render.com (Easiest - Free Tier with Auto HTTPS)**
+
+Render.com provides the easiest deployment with automatic HTTPS and zero infrastructure management. Perfect for testing and small production deployments.
+
+**Prerequisites:**
+- GitHub account
+- This repository forked or pushed to your GitHub
+
+**Step-by-step:**
+
+1. **Push your code to GitHub** (if not already there)
+   ```bash
+   git add .
+   git commit -m "Prepare for Render deployment"
+   git push origin main
+   ```
+
+2. **Go to [Render.com](https://render.com)** and sign in with GitHub
+
+3. **Create New Web Service:**
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
+   - Select the `koop-provider-databricks` repository
+
+4. **Configure the service:**
+   ```
+   Name: koop-databricks (or your preferred name)
+   Region: Choose closest to your users
+   Branch: main
+   Root Directory: (leave blank)
+   Runtime: Node
+   Build Command: npm install
+   Start Command: npm start
+   ```
+
+5. **Add environment variables:**
+
+   Click "Advanced" → "Add Environment Variable" and add the following:
+
+   **For PAT Token authentication (Quick Start):**
+   ```
+   DATABRICKS_SERVER_HOSTNAME = your-workspace.cloud.databricks.com
+   DATABRICKS_HTTP_PATH = /sql/1.0/warehouses/your-warehouse-id
+   DATABRICKS_TOKEN = dapi1234567890abcdef...
+   LOG_LEVEL = INFO
+   ```
+
+   **For Service Principal authentication (Production):**
+   ```
+   DATABRICKS_SERVER_HOSTNAME = your-workspace.cloud.databricks.com
+   DATABRICKS_HTTP_PATH = /sql/1.0/warehouses/your-warehouse-id
+   DATABRICKS_CLIENT_ID = your-service-principal-app-id
+   DATABRICKS_CLIENT_SECRET = your-service-principal-secret
+   LOG_LEVEL = INFO
+   ```
+
+6. **Select free tier plan:**
+   - Instance Type: Free (or choose paid for more resources)
+   - The free tier includes:
+     - 750 hours/month free
+     - Automatic HTTPS
+     - Auto-deploy on git push
+     - Free SSL certificate
+
+7. **Click "Create Web Service"**
+
+   Render will:
+   - Build your application (`npm install`)
+   - Start the server (`npm start`)
+   - Provide a public URL: `https://your-app-name.onrender.com`
+
+8. **Wait for deployment** (usually 2-3 minutes)
+
+   Watch the logs in the Render dashboard to see build progress.
+
+9. **Test your deployment:**
+   ```bash
+   # Check service info
+   curl "https://your-app-name.onrender.com/databricks/rest/info"
+
+   # Query a table
+   curl "https://your-app-name.onrender.com/databricks/rest/services/catalog.schema.table/FeatureServer/0?f=json"
+   ```
+
+**Benefits of Render.com:**
+- ✅ **Automatic HTTPS** - Free SSL certificates included
+- ✅ **Zero infrastructure** - No servers to manage
+- ✅ **Auto-deploy** - Updates automatically on git push
+- ✅ **Free tier** - 750 hours/month at no cost
+- ✅ **Persistent URL** - Get a permanent `.onrender.com` domain
+- ✅ **Easy scaling** - Upgrade to paid plans for more resources
+
+**Render.com vs Other Options:**
+
+| Feature | Render.com | AWS EC2 | Docker |
+|---------|-----------|---------|--------|
+| Setup time | 5 minutes | 30+ minutes | 10 minutes |
+| Free tier | ✅ 750 hrs/month | ❌ Expires after 12 months | N/A |
+| Auto HTTPS | ✅ Included | ❌ Manual setup | ❌ Manual setup |
+| Auto-deploy | ✅ On git push | ❌ Manual | ❌ Manual |
+| Best for | Testing, small prod | Production, control | Production, anywhere |
+
+**Troubleshooting:**
+
+If the build fails:
+- Check the build logs in Render dashboard
+- Verify all environment variables are set
+- Ensure `package.json` has correct dependencies
+- Check Node.js version compatibility
+
+If queries fail:
+- Verify Databricks credentials in environment variables
+- Test SQL Warehouse connectivity from logs
+- Check firewall rules allow Render IP ranges
+
+**Next Steps:**
+Once deployed, your Koop server is accessible at `https://your-app-name.onrender.com`. You can now:
+- Add the URL to ArcGIS Online
+- Test queries from ArcGIS Pro
+- Share the FeatureServer URLs with your team
+
+**Option E: Docker Deployment (Recommended for Production)**
 
 Docker provides the easiest way to deploy Koop with all dependencies pre-configured. This repo includes production-ready Docker files.
 
@@ -1462,18 +1585,43 @@ Once deployed, you can add your FeatureServer to ArcGIS Online.
 
 ## Environment Variables
 
-Configure these environment variables in your deployment:
+Configure these environment variables in your deployment.
+
+### Databricks Authentication - Choose ONE Option
+
+**Option 1: PAT Token (Quick Start - for development/testing)**
+
+| Variable | Description | Example |
+|----------|-------------|---------  |
+| `DATABRICKS_TOKEN` | Personal Access Token | `dapi1234567890abcdef...` |
+
+**Option 2: Service Principal (Production - recommended)**
+
+| Variable | Description | Example |
+|----------|-------------|---------  |
+| `DATABRICKS_CLIENT_ID` | Service Principal Application ID | `your-service-principal-app-id` |
+| `DATABRICKS_CLIENT_SECRET` | Service Principal Secret | `your-service-principal-secret` |
+
+**Why use Service Principal for production?**
+- ✅ No personal credentials tied to individual users
+- ✅ Doesn't expire when user accounts change
+- ✅ Better audit trail and security
+- ✅ Recommended for production deployments
+
+### Connection Settings (Required for both authentication options)
 
 | Variable | Description | Example |
 |----------|-------------|---------  |
 | `DATABRICKS_SERVER_HOSTNAME` | Workspace hostname | `your-workspace.cloud.databricks.com` |
 | `DATABRICKS_HTTP_PATH` | SQL Warehouse path | `/sql/1.0/warehouses/your-warehouse-id` |
-| `DATABRICKS_TOKEN` | Authentication token | Use secrets management |
+
+### Optional Settings
+
+| Variable | Description | Example |
+|----------|-------------|---------  |
 | `LOG_LEVEL` | Logging level | `INFO` or `DEBUG` |
 | `NODE_ENV` | Node environment | `production` |
 | `PORT` | Server port | `8080` |
-
-**Note:** When running on Databricks Apps, you can use Unity Catalog authentication instead of tokens.
 
 ---
 
