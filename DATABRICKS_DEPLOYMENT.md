@@ -15,12 +15,11 @@ This comprehensive guide covers everything you need to prepare your tables, depl
 **Part 2: Deployment**
 2. [Deployment Overview](#2-deployment-overview)
 3. [Architecture](#3-architecture)
-4. [Option 1: Databricks Apps](#4-option-1-databricks-apps-recommended)
-5. [Option 2: Standalone Docker/Cloud Deployment](#5-option-2-standalone-dockercloud-deployment)
+4. [Standalone Docker/Cloud Deployment](#4-standalone-dockercloud-deployment)
 
 **Part 3: Testing & Integration**
-6. [Testing the Deployment](#6-testing-the-deployment)
-7. [Connecting to ArcGIS Online](#7-connecting-to-arcgis-online)
+5. [Testing the Deployment](#5-testing-the-deployment)
+6. [Connecting to ArcGIS Online](#6-connecting-to-arcgis-online)
 
 ---
 
@@ -927,73 +926,7 @@ The Koop Databricks Provider can be deployed in multiple ways depending on your 
 
 ---
 
-## 4. Option 1: Databricks Apps (Easiest)
-
-**Best for:** Quick deployment, testing, demos, getting a public URL fast
-
-Databricks Apps is the easiest way to deploy - you get a public HTTPS URL with zero configuration.
-
-### Prerequisites
-
-- Databricks workspace with Apps enabled
-- Unity Catalog access
-- SQL Warehouse running
-
-### Step 1: Prepare the Application
-
-The example application in `examples/databricks-app/` is ready to deploy. It includes:
-- `app.yaml` - Databricks Apps configuration
-- `Dockerfile` - Container definition
-- `server.js` - Koop server setup
-- `package.json` - Dependencies
-
-### Step 2: Deploy via Databricks CLI
-
-```bash
-# Install Databricks CLI (if not already installed)
-pip install databricks-cli
-
-# Configure authentication
-databricks configure --token
-
-# Deploy the app
-cd examples/databricks-app
-databricks apps create koop-databricks-provider \
-  --source-code-path .
-
-# Get the app URL
-databricks apps get koop-databricks-provider
-```
-
-### Step 3: Configure Environment Variables
-
-In the Databricks Apps UI:
-
-1. Go to your workspace → Apps → koop-databricks-provider
-2. Click "Configuration"
-3. Add environment variables:
-   - `DATABRICKS_HTTP_PATH`:
-     - SQL Warehouse: `/sql/1.0/warehouses/<warehouse-id>`
-     - General-purpose cluster: `sql/protocolv1/o/<org-id>/<cluster-id>`
-   - `DATABRICKS_TOKEN`: (use Databricks secret scope)
-
-### Your Public URL
-
-Your app will be available at:
-```
-https://<workspace-id>.databricksapps.com/<app-id>/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0
-```
-
-Example:
-```
-https://your-workspace.databricksapps.com/your-app/databricks/rest/services/main.default.cities/FeatureServer/0
-```
-
-**Done!** You now have a publicly accessible FeatureServer that works with ArcGIS Online.
-
----
-
-## 5. Option 2: Standalone Docker/Cloud Deployment (Most Flexible)
+## 4. Standalone Docker/Cloud Deployment
 
 **Best for:** Maximum control, existing infrastructure, any cloud provider, production deployments
 
@@ -1410,7 +1343,7 @@ https://koop.your-domain.com/databricks/rest/services/<catalog>.<schema>.<table>
 
 ---
 
-## 6. Testing the Deployment
+## 5. Testing the Deployment
 
 ### 1. Test Service Info
 
@@ -1442,7 +1375,7 @@ See [ARCGIS_TESTING.md](./ARCGIS_TESTING.md) for comprehensive ArcGIS integratio
 
 ---
 
-## 7. Connecting to ArcGIS Online
+## 6. Connecting to ArcGIS Online
 
 Once deployed, you can add your FeatureServer to ArcGIS Online.
 

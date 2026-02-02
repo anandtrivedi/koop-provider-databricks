@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koop-databricks
+  labels:
+    app: koop-databricks
+spec:
+  replicas: 2  # Scale as needed
+  selector:
+    matchLabels:
+      app: koop-databricks
+  template:
+    metadata:
+      labels:
+        app: koop-databricks
+    spec:
+      containers:
+      - name: koop-databricks
+        image: your-registry/koop-databricks:latest  # Replace with your image
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DATABRICKS_SERVER_HOSTNAME
+          valueFrom:
+            secretKeyRef:
+              name: databricks-credentials
+              key: server-hostname
+        - name: DATABRICKS_HTTP_PATH
+          valueFrom:
+            secretKeyRef:
+              name: databricks-credentials
+              key: http-path
+        # Option 1: PAT Token Authentication
+        - name: DATABRICKS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: databricks-credentials
+              key: token
+              optional: true  # Optional if using Service Principal
+        # Option 2: Service Principal Authentication
+        - name: DATABRICKS_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: databricks-credentials
+              key: client-id
+              optional: true  # Optional if using PAT token
+        - name: DATABRICKS_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: databricks-credentials
+              key: client-secret
+              optional: true  # Optional if using PAT token
+        # Additional configuration
+        - name: AUTH_MODE
+          value: "disabled"  # or "enabled" for client auth
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: PORT
+          value: "8080"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /databricks/rest/info
+            port: 8080
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /databricks/rest/info
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
