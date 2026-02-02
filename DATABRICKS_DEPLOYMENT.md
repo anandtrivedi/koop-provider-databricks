@@ -1,3 +1,5 @@
+[← Back to README](./README.md)
+
 # Koop Databricks Provider - Complete Guide
 
 This comprehensive guide covers everything you need to prepare your tables, deploy the Koop provider, and connect to ArcGIS clients.
@@ -809,120 +811,177 @@ For questions or issues:
 
 ## 2. Deployment Overview
 
-
 The Koop Databricks Provider can be deployed in multiple ways depending on your needs:
 
 **Deployment Options:**
 
-| Option | Difficulty | Best For | URL Format |
-|--------|-----------|----------|------------|
-| **Databricks Apps** | Easy | Fastest path to public URL, testing, demos | `https://<workspace>.databricksapps.com/...` |
-| **Standalone Server** | Medium | Maximum flexibility, any cloud provider, existing infrastructure | `https://your-domain.com/...` |
-| **Model Serving** | Advanced | Special Databricks integration requirements | `https://<workspace>.cloud.databricks.com/serving-endpoints/...` |
+| Option | Difficulty | Best For | Detailed Guide |
+|--------|-----------|----------|----------------|
+| **Docker Compose** | Easy | Quick local testing, single-command deployment | [Section 4 - Docker](#option-d-docker-deployment-recommended-for-production) |
+| **Render.com/Cloud** | Easy | Free tier hosting, automatic HTTPS, zero infrastructure | [Section 4 - Standalone](#4-standalone-dockercloud-deployment) |
+| **AWS EC2** | Medium | AWS infrastructure, full control, real-world lessons | [Section 4 - AWS EC2](#aws-ec2-deployment) |
+| **Kubernetes** | Medium | Production-ready, auto-scaling, EKS/GKE/AKS/on-prem | [k8s/README.md](./k8s/README.md) |
+| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [Section 4 - Docker](#option-d-docker-deployment-recommended-for-production) |
+| **Standalone Node.js** | Medium | Custom hosting, existing infrastructure | [Section 4 - Standalone](#4-standalone-dockercloud-deployment) |
 
-**Why use Databricks Apps or Model Serving?**
+**Quick Recommendations:**
 
-- ✅ **Native integration** - Direct access to Databricks SQL Warehouses or clusters without networking config
-- ✅ **Secure** - Uses internal authentication, no need to expose credentials
-- ✅ **Scalable** - Auto-scales with your compute
-- ✅ **Managed** - HTTPS, domains, and hosting handled for you
+- **Testing/Development**: Docker Compose or Render.com (free tier)
+- **Production on AWS**: See [AWS EC2 section below](#aws-ec2-deployment) for real-world lessons, or use [Kubernetes on EKS](./k8s/README.md)
+- **Production on Azure/GCP**: Use [Kubernetes deployment](./k8s/README.md) or container services
+- **Enterprise on-premises**: Use [Kubernetes](./k8s/README.md) or Docker Swarm
 
-**Why use Standalone?**
+**Why Deploy Standalone?**
 
 - ✅ **Maximum flexibility** - Deploy anywhere (AWS, Azure, GCP, on-prem)
 - ✅ **Full control** - Customize networking, authentication, scaling
 - ✅ **Integration** - Add to existing infrastructure and workflows
 - ✅ **Standard Node.js** - Use any Node.js hosting environment
+- ✅ **Works with ArcGIS** - Compatible with all ArcGIS clients (Online, Enterprise, Pro)
 
 ---
 
 ## 3. Architecture
 
-### When Deployed on Databricks (Apps or Model Serving)
+### High-Level Architecture: Databricks → Koop → ArcGIS
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Databricks Platform                           │
-│                                                                       │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              Deployed Koop Server (Container/App)              │ │
-│  │                                                                  │ │
-│  │  ┌──────────────┐        ┌─────────────────────────────────┐  │ │
-│  │  │              │        │   Koop Databricks Provider       │  │ │
-│  │  │   Express    │──────▶│   - Model (SQL queries)          │  │ │
-│  │  │   Server     │        │   - Controller (API endpoints)   │  │ │
-│  │  │   (Node.js)  │        │   - WKT to GeoJSON conversion    │  │ │
-│  │  │              │        │   - Pagination & filtering       │  │ │
-│  │  └──────────────┘        └────────────┬────────────────────┘  │ │
-│  │                                        │                        │ │
-│  │                                        │ SQL Queries            │ │
-│  │                                        ▼                        │ │
-│  │                            ┌──────────────────────┐           │ │
-│  │                            │  SQL Warehouse       │           │ │
-│  │                            │  (Serverless)        │           │ │
-│  │                            └──────────┬───────────┘           │ │
-│  │                                        │                        │ │
-│  │                                        │ Reads from             │ │
-│  │                                        ▼                        │ │
-│  │                            ┌──────────────────────┐           │ │
-│  │                            │  Delta Tables        │           │ │
-│  │                            │  (with WKT geometry) │           │ │
-│  │                            └──────────────────────┘           │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                       │
-│  Public URL: https://your-workspace.databricksapps.com/...          │
-└───────────────────────────────────────────────────────────────────────┘
-                               │
-                               │ ArcGIS FeatureServer REST API
-                               ▼
-                    ┌──────────────────────────┐
-                    │  Client Applications     │
-                    │  - ArcGIS Pro            │
-                    │  - ArcGIS Online         │
-                    │  - ESRI JavaScript API   │
-                    │  - Custom web apps       │
-                    └──────────────────────────┘
-```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                         END-TO-END DATA FLOW ARCHITECTURE                           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 
-### When Deployed Standalone
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                      DATABRICKS LAKEHOUSE                                │
+    │                                                                           │
+    │  ┌──────────────────────────────────────────────────────────────────┐  │
+    │  │  Unity Catalog: catalog.schema.table                             │  │
+    │  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐    │  │
+    │  │  │ Delta Table 1  │  │ Delta Table 2  │  │ Delta Table N  │    │  │
+    │  │  │                │  │                │  │                │    │  │
+    │  │  │ • objectid     │  │ • objectid     │  │ • objectid     │    │  │
+    │  │  │ • geometry_wkt │  │ • geometry_wkt │  │ • geometry_wkt │    │  │
+    │  │  │ • attributes   │  │ • attributes   │  │ • attributes   │    │  │
+    │  │  └────────────────┘  └────────────────┘  └────────────────┘    │  │
+    │  └──────────────────────────────────────────────────────────────────┘  │
+    │                                  │                                      │
+    │                                  │ SQL Queries                          │
+    │                                  ▼                                      │
+    │  ┌──────────────────────────────────────────────────────────────────┐  │
+    │  │              SQL Warehouse (Serverless Compute)                   │  │
+    │  │  • Executes SELECT queries with spatial functions                 │  │
+    │  │  • ST_AsGeoJSON(), ST_Intersects() for geometry processing        │  │
+    │  │  • WHERE clause filtering, pagination (LIMIT/OFFSET)              │  │
+    │  └──────────────────────────────────────────────────────────────────┘  │
+    └───────────────────────────────────┬─────────────────────────────────────┘
+                                        │
+                                        │ HTTPS with
+                                        │ PAT Token or Service Principal
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                  KOOP MIDDLEWARE (Node.js Server)                       │
+    │                  Hosted on: AWS/Azure/GCP/Docker/K8s                    │
+    │                                                                           │
+    │  ┌─────────────────────────────────────────────────────────────────┐   │
+    │  │                    Koop Databricks Provider                      │   │
+    │  │                                                                   │   │
+    │  │  1. Receives FeatureServer REST API requests                     │   │
+    │  │  2. Translates to Databricks SQL queries                         │   │
+    │  │  3. Executes queries via @databricks/sql SDK                     │   │
+    │  │  4. Converts WKT/GEOMETRY → GeoJSON                              │   │
+    │  │  5. Formats response as ArcGIS FeatureServer JSON                │   │
+    │  │                                                                   │   │
+    │  │  Supported Formats:                                               │   │
+    │  │  • WKT strings    → GeoJSON                                      │   │
+    │  │  • WKB binary     → GeoJSON                                      │   │
+    │  │  • GeoJSON text   → GeoJSON                                      │   │
+    │  │  • Native GEOMETRY→ GeoJSON                                      │   │
+    │  └─────────────────────────────────────────────────────────────────┘   │
+    └───────────────────────────────────┬─────────────────────────────────────┘
+                                        │
+                                        │ ArcGIS FeatureServer REST API
+                                        │ (HTTPS - Public URL)
+                                        │
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        ARCGIS ECOSYSTEM                                  │
+    │                                                                           │
+    │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+    │  │  ArcGIS Online   │  │ ArcGIS Enterprise│  │   ArcGIS Pro     │     │
+    │  │                  │  │   (Portal)       │  │   (Desktop)      │     │
+    │  │  • Web Maps      │  │  • Web Maps      │  │  • Projects      │     │
+    │  │  • Dashboards    │  │  • Dashboards    │  │  • Analysis      │     │
+    │  │  • Story Maps    │  │  • Apps          │  │  • Editing       │     │
+    │  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
+    │                                                                           │
+    │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
+    │  │ ArcGIS JS API    │  │  ArcGIS REST API │  │  Custom Web Apps │     │
+    │  │  (4.x / 3.x)     │  │   Consumers      │  │                  │     │
+    │  │  • Web mapping   │  │  • Mobile apps   │  │  • React/Angular │     │
+    │  │  • 3D scenes     │  │  • Integrations  │  │  • Python/R      │     │
+    │  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
+    └─────────────────────────────────────────────────────────────────────────┘
 
-```
-┌─────────────────────────────────────┐        ┌────────────────────────┐
-│   Your Infrastructure (AWS/Azure/GCP│        │  Databricks Platform   │
-│                                      │        │                        │
-│  ┌────────────────────────────────┐ │        │  ┌──────────────────┐ │
-│  │   Koop Server (Node.js)        │ │        │  │  SQL Warehouse   │ │
-│  │   - Express Server             │ │────────┼─▶│  (Serverless)    │ │
-│  │   - Koop Provider              │ │  HTTPS │  └────────┬─────────┘ │
-│  │   - WKT→GeoJSON conversion     │ │        │           │           │
-│  └────────────────────────────────┘ │        │           │           │
-│                                      │        │           ▼           │
-│  Public URL: https://your-domain.com│        │  ┌──────────────────┐ │
-└──────────────────────────────────────┘        │  │  Delta Tables    │ │
-               │                                 │  │  (WKT geometry)  │ │
-               │ ArcGIS FeatureServer API        │  └──────────────────┘ │
-               ▼                                 └────────────────────────┘
-    ┌──────────────────────┐
-    │  ArcGIS Clients      │
-    │  - Pro, Online, etc  │
-    └──────────────────────┘
+    ┌────────────────────────────────────────────────────────────────────────┐
+    │  WHAT GETS EXPOSED:                                                     │
+    │  • Each Delta table → One FeatureServer layer                          │
+    │  • URL: https://your-url/databricks/rest/services/                     │
+    │         catalog.schema.table/FeatureServer/0                           │
+    │                                                                          │
+    │  QUERIES SUPPORTED:                                                     │
+    │  • Spatial filtering (bounding box)                                    │
+    │  • Attribute queries (WHERE clauses)                                   │
+    │  • Field selection (outFields)                                         │
+    │  • Pagination (resultOffset, resultRecordCount)                        │
+    │  • Sorting (orderByFields)                                             │
+    └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
-1. **Koop Server**: Translates between Databricks tables and ArcGIS FeatureServer API
-2. **Databricks Provider**: Custom plugin that queries SQL Warehouse/cluster and converts geometries to GeoJSON
-3. **Databricks Compute**: SQL Warehouse or general-purpose cluster that reads from Delta tables
-4. **Delta Tables**: Your geospatial data with WKT geometry columns
+1. **Databricks Lakehouse (Source of Truth)**
+   - Delta Tables with geospatial data (WKT, WKB, GeoJSON, or native GEOMETRY columns)
+   - Unity Catalog organization (catalog.schema.table)
+   - SQL Warehouse for query execution
+
+2. **Koop Middleware (Translation Layer)**
+   - Receives ArcGIS FeatureServer REST API requests
+   - Translates to Databricks SQL queries
+   - Converts geometries to GeoJSON format
+   - Handles authentication (PAT or Service Principal)
+
+3. **ArcGIS Ecosystem (Consumers)**
+   - ArcGIS Online, Enterprise, Pro
+   - JavaScript API, REST API clients
+   - Custom web applications
 
 ### Data Flow
 
-1. Client requests features via FeatureServer API endpoint
-2. Koop provider generates SQL query with filters/pagination
-3. SQL Warehouse executes query on Delta tables
-4. Provider converts WKT geometries to GeoJSON
-5. Response formatted as ArcGIS FeatureServer JSON
-6. Client applications visualize data using ArcGIS tools
+**Request Flow (ArcGIS → Databricks):**
+1. ArcGIS client requests features: `GET /databricks/rest/services/catalog.schema.table/FeatureServer/0/query?where=population>1000000`
+2. Koop provider receives request and parses parameters
+3. Provider generates SQL query: `SELECT objectid, city_name, ST_AsGeoJSON(geometry) FROM catalog.schema.table WHERE population > 1000000`
+4. Query sent to Databricks SQL Warehouse via HTTPS
+5. SQL Warehouse executes query on Delta tables
+
+**Response Flow (Databricks → ArcGIS):**
+6. Delta table returns rows with GeoJSON geometries
+7. Provider formats response as ArcGIS FeatureServer JSON
+8. Response sent back to ArcGIS client
+9. ArcGIS client renders features on map
+
+### Authentication Options
+
+**Option 1: PAT Token (Quick Start)**
+```
+Koop ─────[DATABRICKS_TOKEN]────▶ SQL Warehouse
+```
+
+**Option 2: Service Principal (Production)**
+```
+Koop ─────[OAuth2 M2M]────▶ SQL Warehouse
+         (Client ID + Secret)
+```
 
 ---
 
@@ -1371,7 +1430,7 @@ curl "https://<your-url>/databricks/rest/services/main.default.koop_test_cities/
 curl "https://<your-url>/databricks/rest/services/main.default.koop_test_cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=json"
 ```
 
-See [ARCGIS_TESTING.md](./ARCGIS_TESTING.md) for comprehensive ArcGIS integration testing.
+See [Section 6 - Testing with ArcGIS](#6-testing-with-arcgis-clients) below for comprehensive ArcGIS integration testing.
 
 ---
 
@@ -1432,9 +1491,9 @@ Configure these environment variables in your deployment:
 ## Additional Resources
 
 - [Databricks Apps Documentation](https://docs.databricks.com/en/apps/index.html)
-- [ArcGIS Testing Guide](./ARCGIS_TESTING.md)
 - [ArcGIS REST API](https://developers.arcgis.com/rest/services-reference/enterprise/feature-service.htm)
 - [Koop Documentation](https://koopjs.github.io/)
+- [Kubernetes Deployment Guide](./k8s/README.md)
 
 ---
 

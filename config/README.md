@@ -1,3 +1,5 @@
+[← Back to README](../README.md) | [Deployment Guide](../DATABRICKS_DEPLOYMENT.md)
+
 # Configuration Guide
 
 This directory contains the configuration file `default.json` that controls how the Koop Databricks Provider behaves.

@@ -1,3 +1,5 @@
+[← Back to README](../README.md) | [Deployment Guide](../DATABRICKS_DEPLOYMENT.md)
+
 # Kubernetes Deployment Guide
 
 Deploy Koop Databricks Provider to any Kubernetes cluster (EKS, GKE, AKS, on-premises, etc.).
@@ -449,9 +451,22 @@ kubectl exec -it koop-databricks-xxxxx-yyyyy -- node test-oauth-auth.js
 - [ ] Backup/DR plan documented
 - [ ] Load testing completed
 
+## See Also
+
+**Other Deployment Options:**
+- **[Main Deployment Guide](../DATABRICKS_DEPLOYMENT.md)** - Comprehensive guide including:
+  - Table preparation
+  - Docker and Docker Compose deployment
+  - AWS EC2 deployment (real-world lessons)
+  - Cloud platform deployment (Azure, GCP)
+  - ArcGIS testing and integration
+
+**Related Documentation:**
+- **[README.md](../README.md)** - Main project documentation with quick start guide
+- **[Configuration Guide](../config/README.md)** - All configuration options explained
+
 ## Support
 
 For issues or questions:
-- GitHub: https://github.com/your-repo/koop-provider-databricks
-- Documentation: See main README.md and DEPLOYMENT.md
+- GitHub: https://github.com/anandtrivedi/koop-provider-databricks
 - Koop docs: https://koopjs.github.io/

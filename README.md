@@ -28,17 +28,37 @@ This provider enables you to:
 
 ### Core Guides
 
-- **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Everything from table preparation to deployment and testing
+- **[Complete Deployment Guide](./DATABRICKS_DEPLOYMENT.md)** - Comprehensive guide with everything you need:
   - Part 1: Preparing your tables (objectid, geometry_wkt, WKT format)
-  - Part 2: Deployment options (Databricks Apps, Docker/Cloud deployment)
-  - Part 3: Testing and ArcGIS integration
-- **[ArcGIS Testing](./ARCGIS_TESTING.md)** - Detailed testing guide for ArcGIS Online, Pro, and JavaScript API
+  - Part 2: Deployment options (Docker, AWS EC2, Cloud platforms)
+  - Part 3: Testing with ArcGIS Online, Pro, and JavaScript API
+- **[Configuration Guide](./config/README.md)** - Detailed explanation of all configuration options (geometry formats, spatial reference, etc.)
+- **[Kubernetes Deployment](./k8s/README.md)** - Production-ready Kubernetes manifests for EKS, GKE, AKS, and on-premises
 
 ### External Resources
 
 - [Koop Documentation](https://koopjs.github.io/docs/usage/provider)
 - [Koop CLI Documentation](https://github.com/koopjs/koop-cli)
 - [Databricks SQL API](https://docs.databricks.com/sql/api/sql-execution-tutorial.html)
+
+## Deployment Options
+
+Choose the deployment method that best fits your needs:
+
+| Option | Difficulty | Best For | Guide |
+|--------|-----------|----------|-------|
+| **Docker Compose** | Easy | Quick local testing, single-command deployment | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **Render.com** | Easy | Free cloud hosting, automatic HTTPS, zero infrastructure | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **AWS EC2** | Medium | AWS infrastructure, full control, lessons learned included | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **Kubernetes** | Medium | Production-ready, auto-scaling, works on EKS/GKE/AKS | [k8s/README.md](./k8s/README.md) |
+| **Docker** | Medium | Any cloud platform (AWS ECS, Azure ACI, GCP Cloud Run) | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+| **Standalone** | Medium | Custom Node.js hosting, existing infrastructure | [DATABRICKS_DEPLOYMENT.md - Part 2](./DATABRICKS_DEPLOYMENT.md#4-standalone-dockercloud-deployment) |
+
+**Quick recommendations:**
+- **Testing/Development**: Docker Compose or Render.com (free tier)
+- **Production on AWS**: EKS with Kubernetes manifests
+- **Production on Azure/GCP**: Kubernetes or container services
+- **Enterprise on-premises**: Kubernetes or Docker Swarm
 
 ## Getting Started
 
