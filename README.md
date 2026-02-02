@@ -22,7 +22,7 @@ This provider enables you to:
 - Connect to Databricks SQL warehouses or general-purpose clusters and query geospatial tables
 - Expose Databricks data as ArcGIS FeatureServer endpoints
 - Support multiple geometry formats (WKT, WKB, GeoJSON, native GEOMETRY)
-- Support H3 spatial filtering for optimized geospatial queries (planned/TBD)
+- Support H3 spatial filtering for optimized geospatial queries
 - Serve data in GeoJSON format compatible with ArcGIS clients
 
 ## Documentation
@@ -723,7 +723,7 @@ When something doesn't work, check these in order:
 1. ✅ Are your environment variables set correctly? (`echo $DATABRICKS_TOKEN`)
 2. ✅ Is your SQL Warehouse running? (Check Databricks workspace)
 3. ✅ Do column names in config match your table? (Case-sensitive!)
-4. ✅ Is your geometry column a STRING with WKT text? (Not GEOMETRY type)
+4. ✅ Is your geometry column in a supported format? (WKT, WKB, GeoJSON, or native GEOMETRY type)
 5. ✅ Are coordinates in `(longitude, latitude)` order? (Not `(lat, lon)`)
 6. ✅ Does every row have a unique, non-NULL objectid? (Check for NULLs and duplicates)
 7. ✅ Is your WKT geometry valid? (Test with `ST_GeomFromText`)
