@@ -10,8 +10,11 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including Koop CLI from devDependencies)
-RUN npm install
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+# Remove build dependencies to reduce image size
+RUN apk del python3 make g++
 
 # Bundle app source
 COPY . .

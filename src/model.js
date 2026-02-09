@@ -20,8 +20,36 @@ const maxRows = parseInt(config.maxRows) || parseInt(process.env.MAX_ROWS) || 10
 const queryTimeoutSeconds = parseInt(process.env.QUERY_TIMEOUT_SECONDS) || 30
 const cacheTTLMs = parseInt(process.env.CACHE_TTL_MS) || 300000
 const CACHE_MAX_ENTRIES = 100
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX) || 100
+const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000
 
 logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, geometryFormat=${geometryFormat}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
+
+// Simple sliding-window rate limiter (per IP)
+const rateLimitStore = {}
+
+function checkRateLimit (ip) {
+  const now = Date.now()
+  if (!rateLimitStore[ip]) {
+    rateLimitStore[ip] = []
+  }
+  // Remove expired timestamps
+  rateLimitStore[ip] = rateLimitStore[ip].filter(t => now - t < rateLimitWindowMs)
+  if (rateLimitStore[ip].length >= rateLimitMax) {
+    return false
+  }
+  rateLimitStore[ip].push(now)
+  return true
+}
+
+// Clean up stale IPs every 5 minutes
+setInterval(() => {
+  const now = Date.now()
+  for (const ip of Object.keys(rateLimitStore)) {
+    rateLimitStore[ip] = rateLimitStore[ip].filter(t => now - t < rateLimitWindowMs)
+    if (rateLimitStore[ip].length === 0) delete rateLimitStore[ip]
+  }
+}, 300000).unref()
 
 function Model (koop) {
   // Cache for field metadata: { [table]: { data, timestamp } }
@@ -47,6 +75,15 @@ function Model (koop) {
 Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   logger.info(`${thisTask}> Received request: ${req.url}`)
+
+  // Rate limiting
+  const clientIp = req.ip || req.connection?.remoteAddress || 'unknown'
+  if (!checkRateLimit(clientIp)) {
+    logger.warn(`${thisTask}> Rate limit exceeded for ${clientIp}`)
+    const err = new Error('Rate limit exceeded. Try again later.')
+    err.code = 429
+    return callback(err)
+  }
 
   const table = req.params.id
 
@@ -165,9 +202,14 @@ Model.prototype.getData = function (req, callback) {
             LineString: 'esriGeometryPolyline',
             MultiLineString: 'esriGeometryPolyline',
             Polygon: 'esriGeometryPolygon',
-            MultiPolygon: 'esriGeometryPolygon'
+            MultiPolygon: 'esriGeometryPolygon',
+            GeometryCollection: 'esriGeometryPolygon'
           }
-          geojson.metadata.geometryType = ESRI_TYPE_MAP[geomType] || 'esriGeometryPoint'
+          geojson.metadata.geometryType = ESRI_TYPE_MAP[geomType]
+          if (!geojson.metadata.geometryType) {
+            logger.warn(`Unknown geometry type: ${geomType}, defaulting to esriGeometryPoint`)
+            geojson.metadata.geometryType = 'esriGeometryPoint'
+          }
           logger.info(`${thisTask}> Detected geometry type: ${geojson.metadata.geometryType}`)
         }
 
@@ -481,12 +523,14 @@ function buildBboxFilter (geometryString, geometryType) {
 
 // Build H3 filter (legacy support for existing queries)
 function buildH3Filter (query) {
-  if (!query.bbox || !query.h3col || !query.h3res) {
+  // Accept bbox from either query.bbox or query.geometry for consistency
+  const bboxString = query.bbox || query.geometry
+  if (!bboxString || !query.h3col || !query.h3res) {
     return null
   }
 
   try {
-    const coords = query.bbox.split(',').map(Number)
+    const coords = bboxString.split(',').map(Number)
 
     if (coords.length !== 4 || coords.some(isNaN)) {
       throw new Error('bbox must contain exactly 4 coordinates')
@@ -550,13 +594,19 @@ function buildTimeFilter (timeParam, timeField) {
   }
 }
 
-// Sanitize ORDER BY clause
+// Sanitize ORDER BY clause by validating each field+direction pair
 function sanitizeOrderBy (orderBy) {
-  // Only allow alphanumeric, underscores, spaces, commas, and ASC/DESC
-  if (!/^[a-zA-Z0-9_,\s]+(?:ASC|DESC)?$/i.test(orderBy)) {
-    throw new Error('Invalid orderByFields parameter')
-  }
-  return orderBy
+  const parts = orderBy.split(',').map(p => p.trim()).filter(p => p)
+  if (parts.length === 0) throw new Error('Invalid orderByFields parameter')
+
+  const sanitized = parts.map(part => {
+    // Match: column_name optionally followed by ASC or DESC
+    const match = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(ASC|DESC)?$/i)
+    if (!match) throw new Error(`Invalid orderByFields parameter: ${part}`)
+    return match[2] ? `${match[1]} ${match[2].toUpperCase()}` : match[1]
+  })
+
+  return sanitized.join(', ')
 }
 
 // Translate results with ST_AsGeoJSON to GeoJSON
@@ -628,7 +678,14 @@ function getAllCoordinates (geometry) {
   const coords = []
 
   function extractCoords (geom) {
-    if (!geom || !geom.coordinates) return
+    if (!geom) return
+
+    if (geom.type === 'GeometryCollection') {
+      if (geom.geometries) geom.geometries.forEach(g => extractCoords(g))
+      return
+    }
+
+    if (!geom.coordinates) return
 
     switch (geom.type) {
       case 'Point':
@@ -646,9 +703,6 @@ function getAllCoordinates (geometry) {
         geom.coordinates.forEach(polygon => {
           polygon.forEach(ring => coords.push(...ring))
         })
-        break
-      case 'GeometryCollection':
-        geom.geometries.forEach(g => extractCoords(g))
         break
     }
   }
@@ -737,3 +791,24 @@ Model.prototype.getFieldMetadata = async function (table, session, taskId) {
 }
 
 module.exports = Model
+
+// Export internal functions for unit testing only
+Model._internals = {
+  isValidTableName,
+  buildGeometryExpression,
+  pushValidatedWhere,
+  buildCountQuery,
+  buildIdsQuery,
+  buildExtentQuery,
+  buildQuery,
+  buildSelectClause,
+  buildBboxFilter,
+  buildH3Filter,
+  buildTimeFilter,
+  sanitizeOrderBy,
+  translateWithSTFunctions,
+  calculateExtent,
+  getAllCoordinates,
+  mapDatabricksToEsriFieldType,
+  checkRateLimit
+}

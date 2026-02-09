@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@databricks/sql": "^1.5.0",
+    "@koopjs/cli": "^0.6.0",
     "@koopjs/koop-core": "^10.4.17",
-    "config": "^3.2.5",
     "dotenv": "^16.3.1",
     "uuid": "^9.0.0"
   },
@@ -24,7 +24,6 @@
   ],
   "license": "Apache-2.0",
   "devDependencies": {
-    "@koopjs/cli": "^0.6.0",
     "standard": "^14.3.1",
     "tap-spec": "^5.0.0",
     "tape": "^5.0.0"
