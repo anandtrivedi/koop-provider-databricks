@@ -2,4 +2,10 @@ node_modules
 *.log
 .idea
 .env
+.env.*
+!.env.example
 .DS_Store
+config/auth.json
+
+# Article drafts
+medium-article-draft.md

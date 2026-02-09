@@ -40,6 +40,11 @@
     "url": "https://github.com/sllynn/koop-provider-databricks/issues"
   },
   "homepage": "https://github.com/sllynn/koop-provider-databricks",
+  "standard": {
+    "ignore": [
+      "examples/"
+    ]
+  },
   "keywords": [
     "koop",
     "provider",

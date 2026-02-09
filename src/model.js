@@ -6,21 +6,25 @@
   Documentation: http://koopjs.github.io/docs/usage/provider
 */
 
-const { DBSQLClient } = require('@databricks/sql')
 const { v4: uuidv4 } = require('uuid')
 const config = require('../config/default.json')
 const logger = require('./logger')
+const connectionManager = require('./connection')
+const { validateWhereClause, validateColumnName, validateColumnList } = require('./validation')
 
 const objectId = config.objectId || process.env.OBJECT_ID_COLUMN || 'objectid'
 const geometryColumn = config.geometryColumn || process.env.GEOMETRY_COLUMN || 'geometry_wkt'
 const geometryFormat = (config.geometryFormat || process.env.GEOMETRY_FORMAT || 'wkt').toLowerCase()
 const spatialReference = config.spatialReference || parseInt(process.env.SPATIAL_REFERENCE) || 4326
 const maxRows = parseInt(config.maxRows) || parseInt(process.env.MAX_ROWS) || 10000
+const queryTimeoutSeconds = parseInt(process.env.QUERY_TIMEOUT_SECONDS) || 30
+const cacheTTLMs = parseInt(process.env.CACHE_TTL_MS) || 300000
+const CACHE_MAX_ENTRIES = 100
 
 logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, geometryFormat=${geometryFormat}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
 
 function Model (koop) {
-  // Cache for field metadata to avoid repeated DESCRIBE queries
+  // Cache for field metadata: { [table]: { data, timestamp } }
   this.fieldsCache = {}
 }
 
@@ -44,16 +48,6 @@ Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   logger.info(`${thisTask}> Received request: ${req.url}`)
 
-  const token = process.env.DATABRICKS_TOKEN
-  const serverHostname = process.env.DATABRICKS_SERVER_HOSTNAME
-  const httpPath = process.env.DATABRICKS_HTTP_PATH
-
-  if (!token || !serverHostname || !httpPath) {
-    return callback(new Error('Cannot find Server Hostname, HTTP Path, or personal access token. ' +
-      'Check the environment variables DATABRICKS_TOKEN, ' +
-      'DATABRICKS_SERVER_HOSTNAME, and DATABRICKS_HTTP_PATH.'))
-  }
-
   const table = req.params.id
 
   // Validate table name to prevent SQL injection
@@ -61,21 +55,13 @@ Model.prototype.getData = function (req, callback) {
     return callback(new Error('Invalid table name provided'))
   }
 
-  const client = new DBSQLClient()
-  const connectOptions = {
-    token: token,
-    host: serverHostname,
-    path: httpPath
-  }
+  const stmtOpts = { queryTimeout: queryTimeoutSeconds }
 
-  client.connect(connectOptions)
-    .then(async client => {
-      let session
+  connectionManager.getSession()
+    .then(async session => {
       let queryOperation
 
       try {
-        session = await client.openSession()
-
         // Check for special query types
         const returnCountOnly = req.query.returnCountOnly === 'true'
         const returnIdsOnly = req.query.returnIdsOnly === 'true'
@@ -89,7 +75,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildCountQuery(table, req.query)
           logger.info(`${thisTask}> Executing count query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, { runAsync: true })
+          queryOperation = await session.executeStatement(queryString, stmtOpts)
           result = await queryOperation.fetchAll()
           await queryOperation.close()
           queryOperation = null
@@ -103,7 +89,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildIdsQuery(table, req.query)
           logger.info(`${thisTask}> Executing IDs query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, { runAsync: true })
+          queryOperation = await session.executeStatement(queryString, stmtOpts)
           result = await queryOperation.fetchAll()
           await queryOperation.close()
           queryOperation = null
@@ -117,7 +103,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildExtentQuery(table, req.query)
           logger.info(`${thisTask}> Executing extent query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, { runAsync: true })
+          queryOperation = await session.executeStatement(queryString, stmtOpts)
           result = await queryOperation.fetchAll()
           await queryOperation.close()
           queryOperation = null
@@ -146,7 +132,7 @@ Model.prototype.getData = function (req, callback) {
         logger.info(`${thisTask}> Executing query: ${queryString}`)
 
         // Don't use maxRows option - it conflicts with SQL LIMIT
-        queryOperation = await session.executeStatement(queryString, { runAsync: true })
+        queryOperation = await session.executeStatement(queryString, stmtOpts)
 
         result = await queryOperation.fetchAll()
 
@@ -174,12 +160,12 @@ Model.prototype.getData = function (req, callback) {
         if (geojson.features.length > 0 && geojson.features[0].geometry) {
           const geomType = geojson.features[0].geometry.type
           const ESRI_TYPE_MAP = {
-            'Point': 'esriGeometryPoint',
-            'MultiPoint': 'esriGeometryMultipoint',
-            'LineString': 'esriGeometryPolyline',
-            'MultiLineString': 'esriGeometryPolyline',
-            'Polygon': 'esriGeometryPolygon',
-            'MultiPolygon': 'esriGeometryPolygon'
+            Point: 'esriGeometryPoint',
+            MultiPoint: 'esriGeometryMultipoint',
+            LineString: 'esriGeometryPolyline',
+            MultiLineString: 'esriGeometryPolyline',
+            Polygon: 'esriGeometryPolygon',
+            MultiPolygon: 'esriGeometryPolygon'
           }
           geojson.metadata.geometryType = ESRI_TYPE_MAP[geomType] || 'esriGeometryPoint'
           logger.info(`${thisTask}> Detected geometry type: ${geojson.metadata.geometryType}`)
@@ -191,10 +177,10 @@ Model.prototype.getData = function (req, callback) {
         // Tell Koop that we've already applied these filters server-side
         // This prevents Koop from re-applying pagination on already-paginated results
         geojson.filtersApplied = {
-          offset: true,    // We handle resultOffset with SQL OFFSET
-          limit: true,     // We handle resultRecordCount with SQL LIMIT
-          where: true,     // We handle WHERE clauses in SQL
-          geometry: true   // We handle bbox filters with ST_Intersects in SQL
+          offset: true, // We handle resultOffset with SQL OFFSET
+          limit: true, // We handle resultRecordCount with SQL LIMIT
+          where: true, // We handle WHERE clauses in SQL
+          geometry: true // We handle bbox filters with ST_Intersects in SQL
         }
 
         // Add extent if we have features
@@ -210,11 +196,10 @@ Model.prototype.getData = function (req, callback) {
         logger.error(`${thisTask}> Error executing query:`, error)
         callback(error)
       } finally {
-        // Ensure resources are cleaned up
+        // Clean up query operation and session only (NOT the shared client)
         try {
           if (queryOperation) await queryOperation.close()
           if (session) await session.close()
-          await client.close()
         } catch (cleanupError) {
           logger.error(`${thisTask}> Error during cleanup:`, cleanupError)
         }
@@ -254,14 +239,23 @@ function buildGeometryExpression () {
   }
 }
 
+// Validate and push WHERE clause, throwing on injection attempts
+function pushValidatedWhere (whereClauses, where) {
+  if (where && where !== '1=1') {
+    const result = validateWhereClause(where)
+    if (!result.valid) {
+      throw new Error(`Invalid WHERE clause: ${result.error}`)
+    }
+    whereClauses.push(`(${where})`)
+  }
+}
+
 // Build count query (for returnCountOnly)
 function buildCountQuery (table, query) {
   // Build WHERE clause (same as regular query)
   const whereClauses = []
 
-  if (query.where && query.where !== '1=1') {
-    whereClauses.push(`(${query.where})`)
-  }
+  pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
     const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
@@ -290,9 +284,7 @@ function buildIdsQuery (table, query) {
   // Build WHERE clause (same as regular query)
   const whereClauses = []
 
-  if (query.where && query.where !== '1=1') {
-    whereClauses.push(`(${query.where})`)
-  }
+  pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
     const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
@@ -335,9 +327,7 @@ function buildExtentQuery (table, query) {
   // Build WHERE clause (same as regular query)
   const whereClauses = []
 
-  if (query.where && query.where !== '1=1') {
-    whereClauses.push(`(${query.where})`)
-  }
+  pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
     const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
@@ -382,10 +372,8 @@ function buildQuery (table, query, taskId) {
   // Build WHERE clause
   const whereClauses = []
 
-  // Add user-provided WHERE clause
-  if (query.where && query.where !== '1=1') {
-    whereClauses.push(`(${query.where})`)
-  }
+  // Add user-provided WHERE clause (validated)
+  pushValidatedWhere(whereClauses, query.where)
 
   // Add bbox spatial filter using ST_Intersects
   if (query.geometry) {
@@ -445,8 +433,12 @@ function buildSelectClause (outFields, returnGeometry) {
     // Return all fields except geometry column (we'll add it as GeoJSON)
     fields = '*'
   } else {
-    // Parse comma-separated field list
-    fields = outFields.split(',').map(f => f.trim()).filter(f => f).join(', ')
+    // Validate each field name
+    const result = validateColumnList(outFields)
+    if (!result.valid) {
+      throw new Error(`Invalid outFields: ${result.error}`)
+    }
+    fields = result.fields.join(', ')
   }
 
   if (returnGeometry) {
@@ -511,9 +503,6 @@ function buildH3Filter (query) {
       throw new Error('h3col must be a valid column name')
     }
 
-    const [xmin, ymin, xmax, ymax] = coords
-    const wkt = `POLYGON((${xmin} ${ymin}, ${xmax} ${ymin}, ${xmax} ${ymax}, ${xmin} ${ymax}, ${xmin} ${ymin}))`
-
     // Use h3_coverash3 function for H3-based spatial indexing
     // Supports WKT, WKB, and native GEOMETRY types
     const geomExpr = buildGeometryExpression()
@@ -528,6 +517,14 @@ function buildH3Filter (query) {
 function buildTimeFilter (timeParam, timeField) {
   // Default time field if not specified
   const field = timeField || 'created_at'
+
+  // Validate timeField column name if user-provided
+  if (timeField) {
+    const result = validateColumnName(timeField)
+    if (!result.valid) {
+      throw new Error(`Invalid timeField: ${result.error}`)
+    }
+  }
 
   try {
     // Time parameter format: "startTime,endTime" in milliseconds since epoch
@@ -681,17 +678,18 @@ function mapDatabricksToEsriFieldType (databricksType) {
   return 'esriFieldTypeString' // Default for STRING, VARCHAR, etc.
 }
 
-// Helper: Get field metadata from DESCRIBE TABLE with caching
+// Helper: Get field metadata from DESCRIBE TABLE with TTL-based caching
 Model.prototype.getFieldMetadata = async function (table, session, taskId) {
-  // Check cache first
-  if (this.fieldsCache[table]) {
+  // Check cache first (with TTL)
+  const cached = this.fieldsCache[table]
+  if (cached && (Date.now() - cached.timestamp < cacheTTLMs)) {
     logger.info(`${taskId}> Using cached field metadata for ${table}`)
-    return this.fieldsCache[table]
+    return cached.data
   }
 
   try {
     logger.info(`${taskId}> Fetching field metadata with DESCRIBE ${table}`)
-    const queryOp = await session.executeStatement(`DESCRIBE ${table}`, { runAsync: true })
+    const queryOp = await session.executeStatement(`DESCRIBE ${table}`, { queryTimeout: queryTimeoutSeconds })
     const rows = await queryOp.fetchAll()
     await queryOp.close()
 
@@ -713,8 +711,22 @@ Model.prototype.getFieldMetadata = async function (table, session, taskId) {
         defaultValue: null
       }))
 
-    // Cache the result
-    this.fieldsCache[table] = fields
+    // Evict oldest entries if cache exceeds max size
+    const keys = Object.keys(this.fieldsCache)
+    if (keys.length >= CACHE_MAX_ENTRIES) {
+      let oldestKey = keys[0]
+      let oldestTime = this.fieldsCache[oldestKey].timestamp
+      for (let i = 1; i < keys.length; i++) {
+        if (this.fieldsCache[keys[i]].timestamp < oldestTime) {
+          oldestKey = keys[i]
+          oldestTime = this.fieldsCache[keys[i]].timestamp
+        }
+      }
+      delete this.fieldsCache[oldestKey]
+    }
+
+    // Cache the result with timestamp
+    this.fieldsCache[table] = { data: fields, timestamp: Date.now() }
     logger.info(`${taskId}> Cached ${fields.length} field definitions for ${table}`)
 
     return fields
