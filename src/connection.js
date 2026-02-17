@@ -8,6 +8,7 @@
 
 const { DBSQLClient } = require('@databricks/sql')
 const logger = require('./logger')
+const { name, version } = require('../package.json')
 
 class ConnectionManager {
   constructor () {
@@ -49,7 +50,8 @@ class ConnectionManager {
 
     const connectOptions = {
       host: serverHostname,
-      path: httpPath
+      path: httpPath,
+      userAgentEntry: `esri_databricks-koop-provider/${version}`
     }
 
     // Detect auth method
