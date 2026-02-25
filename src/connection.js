@@ -8,7 +8,7 @@
 
 const { DBSQLClient } = require('@databricks/sql')
 const logger = require('./logger')
-const { name, version } = require('../package.json')
+const { version } = require('../package.json')
 
 class ConnectionManager {
   constructor () {
