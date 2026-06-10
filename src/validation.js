@@ -48,14 +48,10 @@ function validateWhereClause (where) {
 
 /**
  * Recursively check AST for subquery nodes (nested SELECT).
+ * Walks the children of the root so the top-level Select is not counted.
  */
 function containsSubquery (node) {
   if (!node || typeof node !== 'object') return false
-
-  // If this is a sub-select inside the WHERE, reject
-  if (node.type === 'Select' && node !== arguments[1]) {
-    // We need to skip the top-level Select
-  }
 
   // Check all child properties
   for (const key of Object.keys(node)) {

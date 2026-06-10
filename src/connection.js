@@ -94,11 +94,20 @@ class ConnectionManager {
 
   /**
    * Get a new session from the shared client connection.
+   * If the cached connection has gone stale (warehouse restart, network drop),
+   * reset it and retry once with a fresh connection.
    * @returns {Promise<IDBSQLSession>}
    */
   async getSession () {
     const client = await this.connect()
-    return client.openSession()
+    try {
+      return await client.openSession()
+    } catch (err) {
+      logger.warn(`openSession failed (${err.message}); reconnecting and retrying once`)
+      await this.close()
+      const freshClient = await this.connect()
+      return freshClient.openSession()
+    }
   }
 
   /**

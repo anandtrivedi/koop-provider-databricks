@@ -16,6 +16,10 @@ const {
   buildQuery,
   buildSelectClause,
   buildBboxFilter,
+  parseBbox,
+  webMercatorToWgs84,
+  parseResultRecordCount,
+  parseResultOffset,
   buildTimeFilter,
   sanitizeOrderBy,
   translateWithSTFunctions,
@@ -324,6 +328,109 @@ test('buildBboxFilter - valid bbox', function (t) {
 test('buildBboxFilter - invalid bbox returns null', function (t) {
   t.equal(buildBboxFilter('not,valid,coords'), null, 'returns null for 3 coords')
   t.equal(buildBboxFilter('a,b,c,d'), null, 'returns null for non-numeric')
+  t.end()
+})
+
+test('buildBboxFilter - JSON envelope (ArcGIS client format)', function (t) {
+  var envelope = JSON.stringify({ xmin: -122, ymin: 37, xmax: -121, ymax: 38, spatialReference: { wkid: 4326 } })
+  var filter = buildBboxFilter(envelope, 'esriGeometryEnvelope')
+  t.ok(filter, 'returns a filter')
+  t.ok(filter.includes('ST_Intersects'), 'uses ST_Intersects')
+  t.ok(filter.includes('POLYGON((-122 37, -121 37, -121 38, -122 38, -122 37))'), 'creates polygon from envelope')
+  t.end()
+})
+
+test('buildBboxFilter - Web Mercator envelope is reprojected to WGS84', function (t) {
+  var envelope = JSON.stringify({ xmin: -13692297, ymin: 4439106, xmax: -13580978, ymax: 4579425, spatialReference: { wkid: 102100 } })
+  var coords = parseBbox(envelope)
+  t.ok(coords, 'parses envelope')
+  t.ok(Math.abs(coords[0] - -123.0) < 0.05, 'xmin converted to degrees: ' + coords[0])
+  t.ok(Math.abs(coords[1] - 37.0) < 0.05, 'ymin converted to degrees: ' + coords[1])
+  var filter = buildBboxFilter(envelope, 'esriGeometryEnvelope')
+  t.ok(filter && filter.includes('ST_Intersects'), 'builds spatial filter from reprojected envelope')
+  t.end()
+})
+
+test('buildBboxFilter - comma bbox honors inSR reprojection', function (t) {
+  var coords = parseBbox('-13692297,4439106,-13580978,4579425', '102100')
+  t.ok(coords, 'parses comma bbox with inSR')
+  t.ok(Math.abs(coords[0] - -123.0) < 0.05, 'xmin converted to degrees: ' + coords[0])
+  t.ok(Math.abs(coords[3] - 38.0) < 0.05, 'ymax converted to degrees: ' + coords[3])
+  t.end()
+})
+
+test('buildBboxFilter - unsupported JSON geometry returns null', function (t) {
+  var polygon = JSON.stringify({ rings: [[[-122, 37], [-121, 37], [-121, 38], [-122, 37]]] })
+  t.equal(buildBboxFilter(polygon, 'esriGeometryPolygon'), null, 'returns null for polygon filter')
+  t.equal(buildBboxFilter('{not json'), null, 'returns null for malformed JSON')
+  t.end()
+})
+
+// ============================================================================
+// parseBbox / webMercatorToWgs84
+// ============================================================================
+
+test('webMercatorToWgs84 - converts known coordinates', function (t) {
+  var origin = webMercatorToWgs84(0, 0)
+  t.ok(Math.abs(origin[0]) < 1e-9 && Math.abs(origin[1]) < 1e-9, 'origin maps to 0,0')
+  var sf = webMercatorToWgs84(-13627640, 4547675)
+  t.ok(Math.abs(sf[0] - -122.4194) < 0.01, 'longitude near San Francisco')
+  t.ok(Math.abs(sf[1] - 37.7749) < 0.01, 'latitude near San Francisco')
+  t.end()
+})
+
+test('parseBbox - JSON point becomes degenerate bbox', function (t) {
+  var coords = parseBbox(JSON.stringify({ x: -122, y: 37 }))
+  t.deepEqual(coords, [-122, 37, -122, 37], 'point expands to zero-area bbox')
+  t.end()
+})
+
+test('parseBbox - accepts pre-parsed envelope object (Koop core coerces JSON params)', function (t) {
+  var coords = parseBbox({ xmin: -125, ymin: 32, xmax: -114, ymax: 42, spatialReference: { wkid: 4326 } })
+  t.deepEqual(coords, [-125, 32, -114, 42], 'object envelope parsed directly')
+  var mercator = parseBbox({ xmin: -13692297, ymin: 4439106, xmax: -13580978, ymax: 4579425, spatialReference: { wkid: 102100 } })
+  t.ok(mercator && Math.abs(mercator[0] - -123.0) < 0.05, 'object envelope reprojected from Web Mercator')
+  t.equal(parseBbox({ rings: [[[0, 0], [1, 1]]] }), null, 'polygon object returns null')
+  t.end()
+})
+
+// ============================================================================
+// parseResultRecordCount / parseResultOffset (maxRows enforcement)
+// ============================================================================
+
+test('parseResultRecordCount - clamps to maxRows', function (t) {
+  t.equal(parseResultRecordCount('5'), 5, 'small value passes through')
+  t.equal(parseResultRecordCount('999999999'), 10000, 'oversized value clamped to maxRows')
+  t.equal(parseResultRecordCount('-1'), 10000, 'negative value falls back to maxRows')
+  t.equal(parseResultRecordCount('abc'), 10000, 'non-numeric falls back to maxRows')
+  t.equal(parseResultRecordCount(undefined), 10000, 'missing falls back to maxRows')
+  t.end()
+})
+
+test('parseResultOffset - rejects invalid values', function (t) {
+  t.equal(parseResultOffset('20'), 20, 'valid offset passes through')
+  t.equal(parseResultOffset('-5'), 0, 'negative offset becomes 0')
+  t.equal(parseResultOffset(undefined), 0, 'missing offset becomes 0')
+  t.end()
+})
+
+test('buildQuery - negative resultRecordCount still emits LIMIT', function (t) {
+  var sql = buildQuery('cat.sch.tbl', { resultRecordCount: '-1' }, 'test-id')
+  t.ok(sql.includes('LIMIT 10000'), 'falls back to maxRows instead of dropping LIMIT')
+  t.end()
+})
+
+test('buildQuery - always orders for deterministic pagination', function (t) {
+  var sql = buildQuery('cat.sch.tbl', {}, 'test-id')
+  t.ok(sql.includes('ORDER BY objectid'), 'default query is ordered')
+  t.end()
+})
+
+test('buildTimeFilter - open-ended ranges', function (t) {
+  var start = buildTimeFilter('1640995200000,null')
+  t.ok(/created_at >= TIMESTAMP/.test(start), 'open end becomes >=')
+  var end = buildTimeFilter('null,1640995200000')
+  t.ok(/created_at <= TIMESTAMP/.test(end), 'open start becomes <=')
   t.end()
 })
 

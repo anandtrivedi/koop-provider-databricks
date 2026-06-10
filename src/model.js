@@ -12,11 +12,12 @@ const logger = require('./logger')
 const connectionManager = require('./connection')
 const { validateWhereClause, validateColumnName, validateColumnList } = require('./validation')
 
-const objectId = config.objectId || process.env.OBJECT_ID_COLUMN || 'objectid'
-const geometryColumn = config.geometryColumn || process.env.GEOMETRY_COLUMN || 'geometry_wkt'
-const geometryFormat = (config.geometryFormat || process.env.GEOMETRY_FORMAT || 'wkt').toLowerCase()
-const spatialReference = config.spatialReference || parseInt(process.env.SPATIAL_REFERENCE) || 4326
-const maxRows = parseInt(config.maxRows) || parseInt(process.env.MAX_ROWS) || 10000
+// Environment variables take precedence over config/default.json
+const objectId = process.env.OBJECT_ID_COLUMN || config.objectId || 'objectid'
+const geometryColumn = process.env.GEOMETRY_COLUMN || config.geometryColumn || 'geometry_wkt'
+const geometryFormat = (process.env.GEOMETRY_FORMAT || config.geometryFormat || 'wkt').toLowerCase()
+const spatialReference = parseInt(process.env.SPATIAL_REFERENCE) || config.spatialReference || 4326
+const maxRows = parseInt(process.env.MAX_ROWS) || parseInt(config.maxRows) || 10000
 const queryTimeoutSeconds = parseInt(process.env.QUERY_TIMEOUT_SECONDS) || 30
 const cacheTTLMs = parseInt(process.env.CACHE_TTL_MS) || 300000
 const CACHE_MAX_ENTRIES = 100
@@ -76,8 +77,11 @@ Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   logger.info(`${thisTask}> Received request: ${req.url}`)
 
-  // Rate limiting
-  const clientIp = req.ip || req.connection?.remoteAddress || 'unknown'
+  // Rate limiting. Behind a load balancer req.ip is the LB address (Express
+  // 'trust proxy' is not set by Koop), so prefer the first X-Forwarded-For hop.
+  const forwardedFor = req.headers && req.headers['x-forwarded-for']
+  const clientIp = (typeof forwardedFor === 'string' && forwardedFor.split(',')[0].trim()) ||
+    req.ip || req.socket?.remoteAddress || 'unknown'
   if (!checkRateLimit(clientIp)) {
     logger.warn(`${thisTask}> Rate limit exceeded for ${clientIp}`)
     const err = new Error('Rate limit exceeded. Try again later.')
@@ -217,12 +221,15 @@ Model.prototype.getData = function (req, callback) {
         geojson.metadata.fields = await this.getFieldMetadata(table, session, thisTask)
 
         // Tell Koop that we've already applied these filters server-side
-        // This prevents Koop from re-applying pagination on already-paginated results
+        // This prevents Koop from re-applying pagination on already-paginated results.
+        // Only claim the geometry filter when we actually built one — for unsupported
+        // geometry shapes (e.g. polygon filters) Koop falls back to filtering in-memory.
         geojson.filtersApplied = {
           offset: true, // We handle resultOffset with SQL OFFSET
           limit: true, // We handle resultRecordCount with SQL LIMIT
           where: true, // We handle WHERE clauses in SQL
-          geometry: true // We handle bbox filters with ST_Intersects in SQL
+          geometry: !req.query.geometry ||
+            buildBboxFilter(req.query.geometry, req.query.geometryType, req.query.inSR) !== null
         }
 
         // Add extent if we have features
@@ -263,8 +270,10 @@ function isValidTableName (tableName) {
 function buildGeometryExpression () {
   switch (geometryFormat) {
     case 'wkb':
-      // Well-Known Binary format - use ST_GeomFromWKB
-      return `ST_GeomFromWKB(${geometryColumn})`
+      // Well-Known Binary format - use ST_GeomFromWKB.
+      // The SRID argument is required so ST_Intersects against the
+      // bbox geometry (SRID 4326) doesn't fail on an SRID mismatch.
+      return `ST_GeomFromWKB(${geometryColumn}, ${spatialReference})`
 
     case 'geojson':
       // GeoJSON string format - use ST_GeomFromGeoJSON
@@ -279,6 +288,21 @@ function buildGeometryExpression () {
       // Well-Known Text format (default) - use ST_GeomFromText
       return `ST_GeomFromText(${geometryColumn}, ${spatialReference})`
   }
+}
+
+// Parse resultRecordCount, clamping to [1, maxRows]. Invalid, negative, or
+// oversized values fall back to maxRows so clients can't bypass the row cap.
+function parseResultRecordCount (value) {
+  const parsed = parseInt(value)
+  if (isNaN(parsed) || parsed <= 0) return maxRows
+  return Math.min(parsed, maxRows)
+}
+
+// Parse resultOffset, treating invalid or negative values as 0
+function parseResultOffset (value) {
+  const parsed = parseInt(value)
+  if (isNaN(parsed) || parsed < 0) return 0
+  return parsed
 }
 
 // Validate and push WHERE clause, throwing on injection attempts
@@ -300,7 +324,7 @@ function buildCountQuery (table, query) {
   pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
+    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
     if (bboxFilter) {
       whereClauses.push(bboxFilter)
     }
@@ -320,8 +344,8 @@ function buildCountQuery (table, query) {
 
 // Build IDs only query (for returnIdsOnly)
 function buildIdsQuery (table, query) {
-  const offset = parseInt(query.resultOffset) || 0
-  const limit = parseInt(query.resultRecordCount) || maxRows
+  const offset = parseResultOffset(query.resultOffset)
+  const limit = parseResultRecordCount(query.resultRecordCount)
 
   // Build WHERE clause (same as regular query)
   const whereClauses = []
@@ -329,7 +353,7 @@ function buildIdsQuery (table, query) {
   pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
+    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
     if (bboxFilter) {
       whereClauses.push(bboxFilter)
     }
@@ -354,9 +378,7 @@ function buildIdsQuery (table, query) {
 
   let sql = `SELECT ${objectId} FROM ${table} ${whereClause} ${orderByClause}`.trim()
 
-  if (limit > 0) {
-    sql += ` LIMIT ${limit}`
-  }
+  sql += ` LIMIT ${limit}`
   if (offset > 0) {
     sql += ` OFFSET ${offset}`
   }
@@ -372,7 +394,7 @@ function buildExtentQuery (table, query) {
   pushValidatedWhere(whereClauses, query.where)
 
   if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
+    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
     if (bboxFilter) {
       whereClauses.push(bboxFilter)
     }
@@ -405,8 +427,8 @@ function buildExtentQuery (table, query) {
 // Build SQL query with ST functions and filters
 function buildQuery (table, query, taskId) {
   const returnGeometry = query.returnGeometry !== 'false'
-  const offset = parseInt(query.resultOffset) || 0
-  const limit = parseInt(query.resultRecordCount) || maxRows
+  const offset = parseResultOffset(query.resultOffset)
+  const limit = parseResultRecordCount(query.resultRecordCount)
 
   // Build SELECT clause
   const selectFields = buildSelectClause(query.outFields, returnGeometry)
@@ -419,7 +441,7 @@ function buildQuery (table, query, taskId) {
 
   // Add bbox spatial filter using ST_Intersects
   if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType)
+    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
     if (bboxFilter) {
       whereClauses.push(bboxFilter)
     }
@@ -444,12 +466,11 @@ function buildQuery (table, query, taskId) {
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
   // Build ORDER BY clause
-  // IMPORTANT: Always use ORDER BY for consistent pagination results
+  // IMPORTANT: Always use ORDER BY so pagination is deterministic across requests
   let orderByClause = ''
   if (query.orderByFields) {
     orderByClause = `ORDER BY ${sanitizeOrderBy(query.orderByFields)}`
-  } else if (offset > 0 || limit < maxRows) {
-    // Default to objectId for consistent pagination
+  } else {
     orderByClause = `ORDER BY ${objectId}`
   }
 
@@ -457,9 +478,7 @@ function buildQuery (table, query, taskId) {
   let sql = `SELECT ${selectFields} FROM ${table} ${whereClause} ${orderByClause}`.trim()
 
   // Add pagination
-  if (limit > 0) {
-    sql += ` LIMIT ${limit}`
-  }
+  sql += ` LIMIT ${limit}`
   if (offset > 0) {
     sql += ` OFFSET ${offset}`
   }
@@ -494,14 +513,74 @@ function buildSelectClause (outFields, returnGeometry) {
   return fields
 }
 
-// Build bbox filter using ST_Intersects
-function buildBboxFilter (geometryString, geometryType) {
-  try {
-    // Parse bbox: "xmin,ymin,xmax,ymax"
-    const coords = geometryString.split(',').map(Number)
+// Convert Web Mercator (EPSG:3857 / 102100) coordinates to WGS84 degrees
+function webMercatorToWgs84 (x, y) {
+  const R = 6378137
+  const lon = (x / R) * (180 / Math.PI)
+  const lat = (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * (180 / Math.PI)
+  return [lon, lat]
+}
 
-    if (coords.length !== 4 || coords.some(isNaN)) {
-      logger.warn('Invalid bbox coordinates:', geometryString)
+// Parse the ArcGIS geometry parameter into [xmin, ymin, xmax, ymax] in the
+// data's spatial reference. Supports the comma form ("xmin,ymin,xmax,ymax")
+// and the JSON envelope/point forms that ArcGIS clients send
+// (e.g. {"xmin":...,"spatialReference":{"wkid":102100}}). Koop core may have
+// already parsed the JSON form into an object before getData is called.
+// Returns null for unsupported geometry filters (e.g. polygon).
+function parseBbox (geometryParam, inSR) {
+  let coords
+  let wkid = parseInt(inSR) || null
+  let envelope = null
+
+  if (geometryParam && typeof geometryParam === 'object') {
+    envelope = geometryParam
+  } else {
+    const trimmed = String(geometryParam).trim()
+    if (trimmed.startsWith('{')) {
+      try {
+        envelope = JSON.parse(trimmed)
+      } catch (error) {
+        return null
+      }
+    } else {
+      coords = trimmed.split(',').map(Number)
+    }
+  }
+
+  if (envelope) {
+    const num = v => (v === null || v === undefined || v === '') ? NaN : Number(v)
+    if (['xmin', 'ymin', 'xmax', 'ymax'].every(k => !isNaN(num(envelope[k])))) {
+      coords = [num(envelope.xmin), num(envelope.ymin), num(envelope.xmax), num(envelope.ymax)]
+    } else if (!isNaN(num(envelope.x)) && !isNaN(num(envelope.y))) {
+      coords = [num(envelope.x), num(envelope.y), num(envelope.x), num(envelope.y)]
+    } else {
+      return null
+    }
+    if (envelope.spatialReference && envelope.spatialReference.wkid) {
+      wkid = envelope.spatialReference.wkid
+    }
+  }
+
+  if (!coords || coords.length !== 4 || coords.some(c => typeof c !== 'number' || isNaN(c))) {
+    return null
+  }
+
+  if (wkid === 102100 || wkid === 3857 || wkid === 900913) {
+    const [xmin, ymin] = webMercatorToWgs84(coords[0], coords[1])
+    const [xmax, ymax] = webMercatorToWgs84(coords[2], coords[3])
+    coords = [xmin, ymin, xmax, ymax]
+  }
+
+  return coords
+}
+
+// Build bbox filter using ST_Intersects
+function buildBboxFilter (geometryString, geometryType, inSR) {
+  try {
+    const coords = parseBbox(geometryString, inSR)
+
+    if (!coords) {
+      logger.warn('Unsupported or invalid geometry filter, skipping SQL bbox filter:', geometryString)
       return null
     }
 
@@ -571,19 +650,26 @@ function buildTimeFilter (timeParam, timeField) {
   }
 
   try {
-    // Time parameter format: "startTime,endTime" in milliseconds since epoch
-    // Can also be a single timestamp
-    const times = timeParam.split(',').map(t => parseInt(t.trim(), 10))
+    // Time parameter format: "startTime,endTime" in milliseconds since epoch.
+    // Either end may be "null" for an open-ended range (ArcGIS convention).
+    // Can also be a single timestamp.
+    const parts = timeParam.split(',').map(t => t.trim())
+    const toTimestamp = part => new Date(parseInt(part, 10)).toISOString()
+    const isOpen = part => part === '' || part.toLowerCase() === 'null'
 
-    if (times.length === 1) {
+    if (parts.length === 1 && !isOpen(parts[0])) {
       // Single timestamp - exact match
-      const timestamp = new Date(times[0]).toISOString()
-      return `${field} = TIMESTAMP '${timestamp}'`
-    } else if (times.length === 2) {
-      // Time range - between start and end
-      const startTime = new Date(times[0]).toISOString()
-      const endTime = new Date(times[1]).toISOString()
-      return `${field} BETWEEN TIMESTAMP '${startTime}' AND TIMESTAMP '${endTime}'`
+      return `${field} = TIMESTAMP '${toTimestamp(parts[0])}'`
+    } else if (parts.length === 2) {
+      const hasStart = !isOpen(parts[0])
+      const hasEnd = !isOpen(parts[1])
+      if (hasStart && hasEnd) {
+        return `${field} BETWEEN TIMESTAMP '${toTimestamp(parts[0])}' AND TIMESTAMP '${toTimestamp(parts[1])}'`
+      } else if (hasStart) {
+        return `${field} >= TIMESTAMP '${toTimestamp(parts[0])}'`
+      } else if (hasEnd) {
+        return `${field} <= TIMESTAMP '${toTimestamp(parts[1])}'`
+      }
     }
 
     logger.warn('Invalid time parameter format:', timeParam)
@@ -747,13 +833,17 @@ Model.prototype.getFieldMetadata = async function (table, session, taskId) {
     const rows = await queryOp.fetchAll()
     await queryOp.close()
 
-    const fields = rows
-      .filter(row => {
-        // Exclude geometry column and partition columns
-        return row.col_name !== geometryColumn &&
-               !row.col_name.startsWith('#') &&
-               row.col_name !== ''
-      })
+    // DESCRIBE lists the real columns first; a blank row or '# Partition
+    // Information' header starts the metadata sections, which repeat column
+    // names — stop there to avoid duplicate field definitions.
+    const columnRows = []
+    for (const row of rows) {
+      if (!row.col_name || row.col_name.startsWith('#')) break
+      columnRows.push(row)
+    }
+
+    const fields = columnRows
+      .filter(row => row.col_name !== geometryColumn)
       .map(row => ({
         name: row.col_name,
         type: mapDatabricksToEsriFieldType(row.data_type),
@@ -803,6 +893,10 @@ Model._internals = {
   buildQuery,
   buildSelectClause,
   buildBboxFilter,
+  parseBbox,
+  webMercatorToWgs84,
+  parseResultRecordCount,
+  parseResultOffset,
   buildH3Filter,
   buildTimeFilter,
   sanitizeOrderBy,
