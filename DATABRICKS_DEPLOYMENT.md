@@ -1564,9 +1564,7 @@ Once deployed, you can add your FeatureServer to ArcGIS Online.
 ### Steps:
 
 1. **Get Your FeatureServer URL:**
-   - Databricks Apps: `https://<workspace>.databricksapps.com/<app-id>/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0`
-   - Standalone: `https://your-domain.com/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0`
-   - Model Serving: `https://<workspace>.cloud.databricks.com/serving-endpoints/<name>/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0`
+   - `https://your-domain.com/databricks/rest/services/<catalog>.<schema>.<table>/FeatureServer/0`
 
 2. **Add to ArcGIS Online:**
    - Go to [ArcGIS Online](https://www.arcgis.com)

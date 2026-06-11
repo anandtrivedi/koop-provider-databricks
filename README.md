@@ -2,17 +2,18 @@
 
 A [Koop](https://koopjs.github.io/) provider that connects to Databricks SQL endpoints and serves geospatial data as GeoJSON through ArcGIS FeatureServer APIs.
 
-## What's New in v0.2 🎉
+## What's New in v0.3.0
 
-Major improvements bringing the provider up to date with modern Koop standards:
+**Security & Production Hardening:**
+- **SQL Injection Protection** - AST-based WHERE clause validation, column name sanitization, dangerous keyword rejection
+- **Connection Pooling** - Singleton connection manager, eliminates per-request overhead
+- **Service Principal Auth** - OAuth M2M support via `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET`
+- **Query Timeouts** - Configurable via `QUERY_TIMEOUT_SECONDS` (default: 30s)
+- **Rate Limiting** - Sliding-window per-IP rate limiter
+- **Cache TTL** - Field metadata cache with configurable TTL and LRU eviction
+- **211 Unit Tests** - Comprehensive coverage across validation and query functions
 
-✅ **Upgraded to @koopjs/koop-core@10.4.17** - Latest Koop framework (from 3.17.0)
-✅ **Multi-Format Geometry Support** - WKT, WKB, GeoJSON, and native GEOMETRY types
-✅ **Automatic Geometry Type Detection** - Proper Esri geometry type metadata
-✅ **Complete Field Metadata** - DESCRIBE TABLE integration with type mapping
-✅ **returnExtentOnly Support** - Fast bounding box queries without fetching features
-✅ **Time Filtering** - Temporal queries with `time` and `timeField` parameters
-✅ **Metadata Caching** - In-memory caching for improved performance
+**v0.2.0 highlights:** Multi-format geometry (WKT, WKB, GeoJSON, native GEOMETRY), automatic geometry type detection, field metadata via DESCRIBE TABLE, returnExtentOnly, time filtering, upgraded to @koopjs/koop-core@10.4.17.
 
 See [CHANGELOG.md](./CHANGELOG.md) for detailed release notes.
 
@@ -354,22 +355,6 @@ curl "http://localhost:8080/databricks/rest/services/catalog.schema.table/Featur
 
 - `orderByFields`: Comma-separated list of fields with optional ASC/DESC
 
-### H3 Spatial Filtering (Advanced)
-
-The provider supports H3-based spatial indexing for optimized geospatial queries on large datasets. This requires:
-- A table with an H3 column containing H3 cell indices
-- Query parameters: `bbox`, `h3col`, and `h3res`
-
-Example:
-```bash
-curl "http://localhost:8080/databricks/rest/services/mydb.schema.mytable/FeatureServer/0/query?bbox=-122.5,37.7,-122.3,37.9&h3col=h3_index&h3res=7"
-```
-
-Parameters:
-- `bbox`: Bounding box in format `minX,minY,maxX,maxY`
-- `h3col`: Name of the H3 index column in your table
-- `h3res`: H3 resolution level (0-15)
-
 ### Combined Query Example
 
 ```bash
@@ -419,11 +404,6 @@ Your Databricks table must have:
    - Must be an integer type (INT, BIGINT)
    - The column name should be specified in `config/default.json` (default: `objectid`)
 
-3. **(Optional) H3 Column**: For H3 spatial indexing on large datasets
-   - Contains H3 cell indices as strings or long integers
-   - Improves performance for spatial queries at scale
-   - Use with `h3col` and `h3res` query parameters
-
 ### Supported Geometry Types
 
 All WKT geometry types are automatically detected and converted:
@@ -451,7 +431,6 @@ This provider leverages Databricks SQL's native geospatial functions for optimal
 - **ST_AsGeoJSON()**: Converts WKT geometry to GeoJSON format directly in the database
 - **ST_GeomFromText()**: Validates and parses WKT geometry strings for spatial operations
 - **ST_Intersects()**: Spatial intersection testing for bbox queries
-- **h3_coverash3()**: H3 spatial indexing for large-scale queries
 
 ### Example Table Setup
 
@@ -460,17 +439,16 @@ CREATE TABLE catalog.schema.cities (
   objectid BIGINT,
   city_name STRING,
   population INT,
-  geometry_wkt STRING,  -- WKT geometry as string
-  h3_index STRING       -- Optional: for H3 indexing
+  geometry_wkt STRING  -- WKT geometry as string
 )
 USING DELTA
 LOCATION 's3://your-bucket/cities';
 
 -- Insert data with WKT geometry strings
 INSERT INTO catalog.schema.cities VALUES
-  (1, 'San Francisco', 874961, 'POINT(-122.4194 37.7749)', h3_latlongash3(37.7749, -122.4194, 7)),
-  (2, 'Los Angeles', 3979576, 'POINT(-118.2437 34.0522)', h3_latlongash3(34.0522, -118.2437, 7)),
-  (3, 'New York', 8336817, 'POINT(-74.0060 40.7128)', h3_latlongash3(40.7128, -74.0060, 7));
+  (1, 'San Francisco', 874961, 'POINT(-122.4194 37.7749)'),
+  (2, 'Los Angeles', 3979576, 'POINT(-118.2437 34.0522)'),
+  (3, 'New York', 8336817, 'POINT(-74.0060 40.7128)');
 ```
 
 ### If You Have Native GEOMETRY Columns
@@ -498,8 +476,7 @@ SELECT
   objectid,
   city_name,
   population,
-  ST_AsText(geometry) as geometry_wkt,  -- Convert GEOMETRY to WKT string
-  h3_index
+  ST_AsText(geometry) as geometry_wkt  -- Convert GEOMETRY to WKT string
 FROM catalog.schema.cities_with_geometry;
 ```
 
@@ -774,7 +751,6 @@ For better performance:
   ```sql
   OPTIMIZE catalog.schema.table ZORDER BY (geometry)
   ```
-- **Use H3 spatial indexing**: For large datasets, add H3 indices and use `h3col`/`h3res` parameters
 - **Limit returned fields**: Use `outFields` parameter to request only needed columns
 - **Disable geometry when not needed**: Use `returnGeometry=false` for attribute-only queries
 - **Enable result caching**: Configure caching in your Databricks SQL warehouse
@@ -806,12 +782,6 @@ LIMIT 100
 ```sql
 -- Add Z-ORDER clustering on geometry
 OPTIMIZE catalog.schema.cities ZORDER BY (geometry);
-
--- Add H3 indices for large tables
-ALTER TABLE catalog.schema.cities
-ADD COLUMN h3_7 STRING GENERATED ALWAYS AS (
-  h3_latlongash3(ST_Y(ST_Centroid(geometry)), ST_X(ST_Centroid(geometry)), 7)
-);
 
 -- Create secondary index on frequently queried columns
 CREATE INDEX idx_population ON catalog.schema.cities(population);

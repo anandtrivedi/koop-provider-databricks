@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-09
+
+### Added
+
+- **SQL Injection Protection** - Comprehensive input validation for WHERE clauses, column names, and field lists
+  - WHERE clause parsing via `js-sql-parser` AST analysis
+  - Dangerous keyword rejection (DROP, UNION, DELETE, etc.)
+  - Subquery detection and rejection
+  - Column name validation with strict regex patterns
+- **Connection Pooling** - Singleton `ConnectionManager` reuses a single Databricks client across requests
+  - Eliminates per-request connection overhead
+  - Race-condition-safe with promise caching
+  - Graceful shutdown via SIGTERM/SIGINT handlers
+- **Service Principal Authentication** - OAuth M2M support via `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET`
+- **Query Timeouts** - Configurable via `QUERY_TIMEOUT_SECONDS` (default: 30s) to prevent runaway queries
+- **Rate Limiting** - Sliding-window per-IP rate limiter, configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`
+- **Cache TTL** - Field metadata cache with configurable TTL (`CACHE_TTL_MS`, default: 5 min) and LRU eviction (max 100 entries)
+- **211 Unit Tests** - Comprehensive test coverage across validation and query builder functions
+- **Render.com Deployment Guide** - Step-by-step instructions with Service Principal support
+
+### Fixed
+
+- **ArcGIS JSON envelope geometry filters** - The `geometry` parameter now accepts the JSON envelope/point forms that ArcGIS clients actually send (including pre-parsed objects from Koop core), with Web Mercator (102100/3857) to WGS84 reprojection via `inSR` or the embedded `spatialReference`. Previously these were silently ignored and spatially unfiltered data was returned
+- **Honest `filtersApplied.geometry`** - Only claimed when a SQL bbox filter was actually applied, so Koop falls back to in-memory filtering for unsupported geometry shapes (e.g. polygon filters)
+- **`maxRows` enforcement** - `resultRecordCount` is clamped to `[1, maxRows]`; previously oversized values bypassed the cap and negative values removed the LIMIT clause entirely (full-table dump)
+- **Environment variable precedence** - `OBJECT_ID_COLUMN`, `GEOMETRY_COLUMN`, `GEOMETRY_FORMAT`, `SPATIAL_REFERENCE`, and `MAX_ROWS` now override `config/default.json` as documented; previously the config file always won and the env vars were ignored
+- **Deterministic pagination** - Queries always include `ORDER BY` (default: objectid), preventing duplicate/missing rows across pages
+- **WKB SRID mismatch** - `ST_GeomFromWKB` now passes the configured SRID so `ST_Intersects` against bbox geometry doesn't fail
+- **Stale connection recovery** - `getSession()` resets and reconnects once if the cached Databricks client has gone stale (warehouse restart, network drop)
+- **Rate limiting behind load balancers** - Client IP taken from the first `X-Forwarded-For` hop, so all users no longer share one rate-limit bucket
+- **Duplicate field metadata** - `DESCRIBE TABLE` parsing stops at the partition-information section instead of re-including repeated column rows
+- **Open-ended time ranges** - `time=<start>,null` and `time=null,<end>` now produce `>=` / `<=` filters instead of being dropped
+- **GeometryCollection coordinate extraction** - Fixed unreachable code path where GeometryCollection was not handled before the `coordinates` null check
+- **ORDER BY sanitization** - Strict validation of column names and directions (ASC/DESC only)
+
+### Security
+
+- SQL injection protection on all user inputs: `where`, `outFields`, `orderByFields`, `timeField`
+- Table name validation (catalog.schema.table format only)
+- H3 column name validation
+- Credentials excluded from git via `.gitignore` patterns
+
 ## [0.2.1] - 2026-01-12
 
 ### Added
@@ -18,9 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Documentation URLs**: Replaced internal workspace URLs with generic placeholders for better consistency
-  - Changed `your-workspace.databricksapps.com` to `your-workspace.databricksapps.com`
-  - Changed `your-workspace.cloud.databricks.com` to `your-workspace.cloud.databricks.com`
-  - Improved documentation clarity with consistent placeholder naming
 
 ### Fixed
 

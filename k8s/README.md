@@ -236,8 +236,10 @@ env:
   value: "geometry_wkt"  # Or your custom column name
 - name: LOG_LEVEL
   value: "INFO"  # DEBUG, INFO, WARN, ERROR
-- name: AUTH_MODE
-  value: "disabled"  # or "enabled" for client authentication
+- name: QUERY_TIMEOUT_SECONDS
+  value: "30"  # SQL query timeout in seconds
+- name: RATE_LIMIT_MAX
+  value: "100"  # Max requests per window per IP
 ```
 
 ## Monitoring and Logs

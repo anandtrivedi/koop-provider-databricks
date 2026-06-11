@@ -52,8 +52,6 @@ spec:
               key: client-secret
               optional: true  # Optional if using PAT token
         # Additional configuration
-        - name: AUTH_MODE
-          value: "disabled"  # or "enabled" for client auth
         - name: LOG_LEVEL
           value: "INFO"
         - name: PORT

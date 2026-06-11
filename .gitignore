@@ -9,3 +9,6 @@ config/auth.json
 
 # Article drafts
 medium-article-draft.md
+
+# Test files
+test-map.html
