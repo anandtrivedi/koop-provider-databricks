@@ -324,9 +324,11 @@ function pushValidatedWhere (whereClauses, where) {
   }
 }
 
-// Build count query (for returnCountOnly)
-function buildCountQuery (table, query) {
-  // Build WHERE clause (same as regular query)
+// Build the list of WHERE clauses shared by all query builders:
+// user WHERE, bbox spatial filter, H3 filter, and time filter. Keeping this
+// in one place ensures returnCountOnly/returnIdsOnly/returnExtentOnly apply the
+// exact same filters as the feature query (ArcGIS clients rely on that parity).
+function buildWhereClauses (query) {
   const whereClauses = []
 
   pushValidatedWhere(whereClauses, query.where)
@@ -345,6 +347,19 @@ function buildCountQuery (table, query) {
     }
   }
 
+  if (query.time) {
+    const timeFilter = buildTimeFilter(query.time, query.timeField)
+    if (timeFilter) {
+      whereClauses.push(timeFilter)
+    }
+  }
+
+  return whereClauses
+}
+
+// Build count query (for returnCountOnly)
+function buildCountQuery (table, query) {
+  const whereClauses = buildWhereClauses(query)
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
   return `SELECT COUNT(*) as cnt FROM ${table} ${whereClause}`.trim()
@@ -355,25 +370,7 @@ function buildIdsQuery (table, query) {
   const offset = parseResultOffset(query.resultOffset)
   const limit = parseResultRecordCount(query.resultRecordCount)
 
-  // Build WHERE clause (same as regular query)
-  const whereClauses = []
-
-  pushValidatedWhere(whereClauses, query.where)
-
-  if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
-    if (bboxFilter) {
-      whereClauses.push(bboxFilter)
-    }
-  }
-
-  if (query.h3col && query.h3res) {
-    const h3Filter = buildH3Filter(query)
-    if (h3Filter) {
-      whereClauses.push(h3Filter)
-    }
-  }
-
+  const whereClauses = buildWhereClauses(query)
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
   // Order BY for consistent pagination
@@ -396,25 +393,7 @@ function buildIdsQuery (table, query) {
 
 // Build extent query (for returnExtentOnly)
 function buildExtentQuery (table, query) {
-  // Build WHERE clause (same as regular query)
-  const whereClauses = []
-
-  pushValidatedWhere(whereClauses, query.where)
-
-  if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
-    if (bboxFilter) {
-      whereClauses.push(bboxFilter)
-    }
-  }
-
-  if (query.h3col && query.h3res) {
-    const h3Filter = buildH3Filter(query)
-    if (h3Filter) {
-      whereClauses.push(h3Filter)
-    }
-  }
-
+  const whereClauses = buildWhereClauses(query)
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
   // Use ST_Envelope to get bounding box, then extract min/max coordinates
@@ -441,36 +420,7 @@ function buildQuery (table, query, taskId) {
   // Build SELECT clause
   const selectFields = buildSelectClause(query.outFields, returnGeometry)
 
-  // Build WHERE clause
-  const whereClauses = []
-
-  // Add user-provided WHERE clause (validated)
-  pushValidatedWhere(whereClauses, query.where)
-
-  // Add bbox spatial filter using ST_Intersects
-  if (query.geometry) {
-    const bboxFilter = buildBboxFilter(query.geometry, query.geometryType, query.inSR)
-    if (bboxFilter) {
-      whereClauses.push(bboxFilter)
-    }
-  }
-
-  // Add H3 filter if provided (legacy support)
-  if (query.h3col && query.h3res) {
-    const h3Filter = buildH3Filter(query)
-    if (h3Filter) {
-      whereClauses.push(h3Filter)
-    }
-  }
-
-  // Add time filter if provided
-  if (query.time) {
-    const timeFilter = buildTimeFilter(query.time, query.timeField)
-    if (timeFilter) {
-      whereClauses.push(timeFilter)
-    }
-  }
-
+  const whereClauses = buildWhereClauses(query)
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
   // Build ORDER BY clause
@@ -901,6 +851,7 @@ Model._internals = {
   buildExtentQuery,
   buildQuery,
   buildSelectClause,
+  buildWhereClauses,
   buildBboxFilter,
   parseBbox,
   webMercatorToWgs84,

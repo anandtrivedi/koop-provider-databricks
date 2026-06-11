@@ -15,6 +15,7 @@ const {
   buildExtentQuery,
   buildQuery,
   buildSelectClause,
+  buildWhereClauses,
   buildBboxFilter,
   parseBbox,
   webMercatorToWgs84,
@@ -657,4 +658,40 @@ test('executeAndRecord - records executed queries in Model.recentQueries', funct
     t.equal(typeof last.durationMs, 'number', 'records a duration')
     t.end()
   }).catch(function (err) { t.fail(err.message); t.end() })
+})
+
+// ============================================================================
+// time filter parity across count/ids/extent (regression)
+// ============================================================================
+
+test('buildCountQuery - applies time filter', function (t) {
+  var sql = buildCountQuery('cat.sch.tbl', { time: '1771200000000,1771221600000', timeField: 'position_time' })
+  t.ok(sql.includes('position_time BETWEEN TIMESTAMP'), 'count query includes time filter')
+  t.end()
+})
+
+test('buildExtentQuery - applies time filter', function (t) {
+  var sql = buildExtentQuery('cat.sch.tbl', { time: '1771200000000,1771221600000', timeField: 'position_time' })
+  t.ok(sql.includes('position_time BETWEEN TIMESTAMP'), 'extent query includes time filter')
+  t.end()
+})
+
+test('buildIdsQuery - applies time filter', function (t) {
+  var sql = buildIdsQuery('cat.sch.tbl', { time: '1771200000000,1771221600000', timeField: 'position_time' })
+  t.ok(sql.includes('position_time BETWEEN TIMESTAMP'), 'ids query includes time filter')
+  t.end()
+})
+
+test('buildWhereClauses - combines all filter types', function (t) {
+  var clauses = buildWhereClauses({
+    where: "carrier = 'Verizon'",
+    geometry: '-77,38,-76,39',
+    time: '1771200000000,1771221600000',
+    timeField: 'position_time'
+  })
+  t.equal(clauses.length, 3, 'where + bbox + time')
+  t.ok(clauses.some(c => c.includes("carrier = 'Verizon'")), 'has where')
+  t.ok(clauses.some(c => c.includes('ST_Intersects')), 'has bbox')
+  t.ok(clauses.some(c => c.includes('position_time BETWEEN')), 'has time')
+  t.end()
 })
