@@ -26,6 +26,33 @@ const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000
 
 logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, geometryFormat=${geometryFormat}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
 
+// Ring buffer of recently executed queries, exposed as Model.recentQueries
+// for diagnostics and demo UIs (e.g. a query inspector panel)
+const RECENT_QUERIES_MAX = 50
+const recentQueries = []
+
+function recordQuery (entry) {
+  recentQueries.push(entry)
+  if (recentQueries.length > RECENT_QUERIES_MAX) recentQueries.shift()
+}
+
+// Execute a statement, fetch all rows, and record it in the query log
+async function executeAndRecord (session, sql, kind, taskId) {
+  const started = Date.now()
+  const op = await session.executeStatement(sql, { queryTimeout: queryTimeoutSeconds })
+  const rows = await op.fetchAll()
+  await op.close()
+  recordQuery({
+    at: new Date(started).toISOString(),
+    taskId,
+    kind,
+    sql,
+    durationMs: Date.now() - started,
+    rows: rows.length
+  })
+  return rows
+}
+
 // Simple sliding-window rate limiter (per IP)
 const rateLimitStore = {}
 
@@ -96,12 +123,8 @@ Model.prototype.getData = function (req, callback) {
     return callback(new Error('Invalid table name provided'))
   }
 
-  const stmtOpts = { queryTimeout: queryTimeoutSeconds }
-
   connectionManager.getSession()
     .then(async session => {
-      let queryOperation
-
       try {
         // Check for special query types
         const returnCountOnly = req.query.returnCountOnly === 'true'
@@ -116,10 +139,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildCountQuery(table, req.query)
           logger.info(`${thisTask}> Executing count query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, stmtOpts)
-          result = await queryOperation.fetchAll()
-          await queryOperation.close()
-          queryOperation = null
+          result = await executeAndRecord(session, queryString, 'count', thisTask)
 
           const count = result[0]?.cnt || 0
           logger.info(`${thisTask}> Count result: ${count}`)
@@ -130,10 +150,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildIdsQuery(table, req.query)
           logger.info(`${thisTask}> Executing IDs query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, stmtOpts)
-          result = await queryOperation.fetchAll()
-          await queryOperation.close()
-          queryOperation = null
+          result = await executeAndRecord(session, queryString, 'ids', thisTask)
 
           const objectIds = result.map(row => row[objectId])
           logger.info(`${thisTask}> Returned ${objectIds.length} IDs`)
@@ -144,10 +161,7 @@ Model.prototype.getData = function (req, callback) {
           queryString = buildExtentQuery(table, req.query)
           logger.info(`${thisTask}> Executing extent query: ${queryString}`)
 
-          queryOperation = await session.executeStatement(queryString, stmtOpts)
-          result = await queryOperation.fetchAll()
-          await queryOperation.close()
-          queryOperation = null
+          result = await executeAndRecord(session, queryString, 'extent', thisTask)
 
           if (result.length > 0 && result[0].xmin !== null) {
             const extent = {
@@ -173,12 +187,7 @@ Model.prototype.getData = function (req, callback) {
         logger.info(`${thisTask}> Executing query: ${queryString}`)
 
         // Don't use maxRows option - it conflicts with SQL LIMIT
-        queryOperation = await session.executeStatement(queryString, stmtOpts)
-
-        result = await queryOperation.fetchAll()
-
-        await queryOperation.close()
-        queryOperation = null
+        result = await executeAndRecord(session, queryString, 'features', thisTask)
 
         logger.info(`${thisTask}> Received ${result.length} rows`)
 
@@ -245,9 +254,8 @@ Model.prototype.getData = function (req, callback) {
         logger.error(`${thisTask}> Error executing query:`, error)
         callback(error)
       } finally {
-        // Clean up query operation and session only (NOT the shared client)
+        // Clean up the session only (NOT the shared client)
         try {
-          if (queryOperation) await queryOperation.close()
           if (session) await session.close()
         } catch (cleanupError) {
           logger.error(`${thisTask}> Error during cleanup:`, cleanupError)
@@ -829,9 +837,7 @@ Model.prototype.getFieldMetadata = async function (table, session, taskId) {
 
   try {
     logger.info(`${taskId}> Fetching field metadata with DESCRIBE ${table}`)
-    const queryOp = await session.executeStatement(`DESCRIBE ${table}`, { queryTimeout: queryTimeoutSeconds })
-    const rows = await queryOp.fetchAll()
-    await queryOp.close()
+    const rows = await executeAndRecord(session, `DESCRIBE ${table}`, 'describe', taskId)
 
     // DESCRIBE lists the real columns first; a blank row or '# Partition
     // Information' header starts the metadata sections, which repeat column
@@ -882,6 +888,9 @@ Model.prototype.getFieldMetadata = async function (table, session, taskId) {
 
 module.exports = Model
 
+// Recently executed queries (ring buffer) for diagnostics and demo UIs
+Model.recentQueries = recentQueries
+
 // Export internal functions for unit testing only
 Model._internals = {
   isValidTableName,
@@ -904,5 +913,6 @@ Model._internals = {
   calculateExtent,
   getAllCoordinates,
   mapDatabricksToEsriFieldType,
-  checkRateLimit
+  checkRateLimit,
+  executeAndRecord
 }

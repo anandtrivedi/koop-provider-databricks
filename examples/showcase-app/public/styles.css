@@ -1,0 +1,196 @@
+:root {
+  --bg: #0e1116;
+  --panel: #151a21;
+  --panel-border: #232a33;
+  --text: #d7dde4;
+  --text-dim: #8a94a0;
+  --accent: #ff9e2c;
+  --green: #3fb950;
+  --classification: #007a33;
+  font-size: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+}
+
+#banner, #banner-bottom {
+  background: var(--classification);
+  color: #fff;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 2px 0;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+h1 { font-size: 18px; letter-spacing: 3px; color: var(--accent); }
+.subtitle { font-size: 11px; color: var(--text-dim); display: block; }
+
+#tabs { display: flex; gap: 4px; }
+#tabs button {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  padding: 6px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  border-radius: 3px;
+}
+#tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14110a;
+  font-weight: 600;
+}
+
+.header-right { margin-left: auto; }
+.chip {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.chip-pending { background: #3a3325; color: var(--accent); }
+.chip-ok { background: #1d3325; color: var(--green); }
+.chip-err { background: #3a2222; color: #f47067; }
+
+#main {
+  display: flex;
+  height: calc(100vh - 86px);
+}
+
+#layer-panel {
+  width: 280px;
+  background: var(--panel);
+  border-right: 1px solid var(--panel-border);
+  padding: 12px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+#layer-panel h2, #inspector h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.layer-row:hover { background: #1b212a; }
+.layer-row input { margin-top: 3px; accent-color: var(--accent); }
+.layer-name { font-size: 13px; line-height: 1.3; }
+.layer-meta { font-size: 11px; color: var(--text-dim); }
+.layer-count { color: var(--accent); font-weight: 600; }
+.layer-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.badge-koop { background: #1c3a52; color: #58a6ff; }
+.badge-cdf { background: #3a2a52; color: #bc8cff; }
+
+#view { flex: 1; }
+
+#inspector {
+  width: 420px;
+  background: var(--panel);
+  border-left: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.inspector-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 12px 6px;
+}
+.inspector-sub { font-size: 10px; color: var(--text-dim); flex: 1; }
+#inspector-pause {
+  background: transparent; border: 1px solid var(--panel-border);
+  color: var(--text-dim); border-radius: 3px; cursor: pointer; padding: 2px 8px;
+}
+
+#query-list { overflow-y: auto; padding: 0 12px 12px; flex: 1; }
+
+.query-card {
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #10141a;
+}
+.query-card.kind-count { border-left-color: #58a6ff; }
+.query-card.kind-extent { border-left-color: #bc8cff; }
+.query-card.kind-describe { border-left-color: #6e7681; }
+.query-card.kind-ids { border-left-color: #39c5cf; }
+
+.query-head {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.query-kind {
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+}
+.query-sql {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c9d1d9;
+}
+.query-sql .kw { color: #ff7b72; font-weight: 600; }
+.query-sql .fn { color: #d2a8ff; }
+.query-sql .str { color: #a5d6ff; }
+
+#time-panel { margin-top: 18px; border-top: 1px solid var(--panel-border); padding-top: 12px; }
+#time-panel.hidden { display: none; }
+.time-readout {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+#time-slider { width: 100%; accent-color: var(--accent); }
+.time-controls { display: flex; gap: 10px; margin-top: 8px; align-items: center; font-size: 12px; }
+.time-controls button {
+  background: var(--accent); border: none; color: #14110a;
+  font-weight: 600; padding: 4px 12px; border-radius: 3px; cursor: pointer;
+}
+
+.esri-view .esri-view-surface--touch-none:focus::after { outline: none !important; }

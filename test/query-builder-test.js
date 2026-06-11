@@ -27,7 +27,8 @@ const {
   getAllCoordinates,
   mapDatabricksToEsriFieldType,
   checkRateLimit,
-  pushValidatedWhere
+  pushValidatedWhere,
+  executeAndRecord
 } = Model._internals
 
 // ============================================================================
@@ -632,4 +633,28 @@ test('checkRateLimit - allows requests within limit', function (t) {
   t.ok(checkRateLimit(ip), 'first request allowed')
   t.ok(checkRateLimit(ip), 'second request allowed')
   t.end()
+})
+
+// ============================================================================
+// executeAndRecord / Model.recentQueries
+// ============================================================================
+
+test('executeAndRecord - records executed queries in Model.recentQueries', function (t) {
+  var fakeSession = {
+    executeStatement: function () {
+      return Promise.resolve({
+        fetchAll: function () { return Promise.resolve([{ a: 1 }, { a: 2 }]) },
+        close: function () { return Promise.resolve() }
+      })
+    }
+  }
+  executeAndRecord(fakeSession, 'SELECT 1', 'features', 'task-1').then(function (rows) {
+    t.equal(rows.length, 2, 'returns fetched rows')
+    var last = Model.recentQueries[Model.recentQueries.length - 1]
+    t.equal(last.sql, 'SELECT 1', 'records the sql text')
+    t.equal(last.kind, 'features', 'records the query kind')
+    t.equal(last.rows, 2, 'records the row count')
+    t.equal(typeof last.durationMs, 'number', 'records a duration')
+    t.end()
+  }).catch(function (err) { t.fail(err.message); t.end() })
 })

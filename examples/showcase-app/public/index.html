@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overture COP — Lakehouse Common Operating Picture</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+  <div id="banner">UNCLASSIFIED</div>
+  <header>
+    <div class="title-block">
+      <h1>OVERTURE COP</h1>
+      <span class="subtitle">Lakehouse Common Operating Picture &nbsp;·&nbsp; ArcGIS FeatureServer ⇄ Koop ⇄ Databricks SQL</span>
+    </div>
+    <nav id="tabs"></nav>
+    <div class="header-right">
+      <span id="conn-status" class="chip chip-pending">connecting…</span>
+    </div>
+  </header>
+
+  <div id="main">
+    <aside id="layer-panel">
+      <h2>Layers</h2>
+      <div id="layer-list"></div>
+      <div id="time-panel" class="hidden">
+        <h2>Track History Replay</h2>
+        <div class="time-readout" id="time-readout">—</div>
+        <input type="range" id="time-slider" min="0" max="47" value="47" step="1" />
+        <div class="time-controls">
+          <button id="time-play">▶ Replay</button>
+          <label><input type="checkbox" id="time-window" checked /> 6-hour window</label>
+        </div>
+      </div>
+    </aside>
+
+    <div id="view"></div>
+
+    <aside id="inspector">
+      <div class="inspector-header">
+        <h2>Query Inspector</h2>
+        <span class="inspector-sub">live SQL pushed down to Databricks</span>
+        <button id="inspector-pause">⏸</button>
+      </div>
+      <div id="query-list"></div>
+    </aside>
+  </div>
+
+  <div id="banner-bottom">UNCLASSIFIED</div>
+  <script src="app.js"></script>
+</body>
+</html>
