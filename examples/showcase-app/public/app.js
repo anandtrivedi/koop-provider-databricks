@@ -5,8 +5,9 @@ require([
   'esri/views/MapView',
   'esri/layers/FeatureLayer',
   'esri/widgets/Editor',
-  'esri/widgets/Expand'
-], function (Map, MapView, FeatureLayer, Editor, Expand) {
+  'esri/widgets/Expand',
+  'esri/identity/IdentityManager'
+], function (Map, MapView, FeatureLayer, Editor, Expand, esriId) {
   const state = {
     config: null,
     layers: {}, // id -> { config, layer, enabled }
@@ -187,7 +188,10 @@ require([
     row.querySelector('input').addEventListener('change', e => {
       state.layers[cfg.id].enabled = e.target.checked
       syncVisibility()
-      if (cfg.editable) toggleEditor()
+      if (cfg.editable) {
+        if (e.target.checked) ensureEditAuth(cfg)
+        toggleEditor()
+      }
     })
     document.getElementById('layer-list').appendChild(row)
   }
@@ -239,6 +243,22 @@ require([
   }
 
   // ------------------------------------------------------------------ editor
+
+  // Editable CDF layers are served by ArcGIS Server, which rejects anonymous
+  // edits ("features:user:edit" privilege). Prompt the user to sign in with an
+  // editor account — IdentityManager mints a correctly referer-bound token and
+  // attaches it to all subsequent requests for that server.
+  function ensureEditAuth (cfg) {
+    if (cfg.source !== 'cdf' || !cfg.editable) return
+    const restRoot = cfg.url.slice(0, cfg.url.indexOf('/rest/') + 6)
+    const setMeta = html => {
+      const el = document.querySelector(`[data-layer="${cfg.id}"] .layer-meta`)
+      if (el) el.innerHTML = html
+    }
+    esriId.getCredential(restRoot)
+      .then(cred => setMeta(`✎ signed in as <b>${cred.userId}</b> — edits enabled`))
+      .catch(() => setMeta('⚠ sign-in cancelled — edits disabled'))
+  }
 
   function toggleEditor () {
     const editableVisible = Object.values(state.layers).some(
