@@ -9,7 +9,8 @@
   "scripts": {
     "start": "koop serve",
     "test": "standard && tape test/*.js | tap-spec",
-    "create-test-data": "node examples/testing/create-test-table.js"
+    "create-test-data": "node examples/testing/create-test-table.js",
+    "build": "echo \"no build step\""
   },
   "dependencies": {
     "@databricks/sql": "^1.5.0",

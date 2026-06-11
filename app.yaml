@@ -1,0 +1,15 @@
+# Databricks Apps configuration for the Overture COP showcase
+# (examples/showcase-app). The Apps runtime injects DATABRICKS_APP_PORT and
+# service principal OAuth credentials (DATABRICKS_CLIENT_ID/SECRET), which
+# the provider's connection manager picks up automatically.
+command: ["node", "examples/showcase-app/server.js"]
+
+env:
+  - name: DATABRICKS_SERVER_HOSTNAME
+    value: "fevm-dod-commercial.cloud.databricks.com"
+  - name: DATABRICKS_HTTP_PATH
+    value: "/sql/1.0/warehouses/d2710cd32353e1b8"
+  - name: RATE_LIMIT_MAX
+    value: "2000"
+  - name: LOG_LEVEL
+    value: "INFO"
