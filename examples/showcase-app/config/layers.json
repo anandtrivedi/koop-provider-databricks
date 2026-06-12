@@ -7,8 +7,8 @@
     },
     "maritime": {
       "title": "Maritime",
-      "center": [-74.05, 40.55],
-      "zoom": 10
+      "center": [-72.5, 39.5],
+      "zoom": 6
     }
   },
   "layers": [
