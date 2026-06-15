@@ -73,24 +73,13 @@
     {
       "id": "celltowers",
       "tab": "cop",
-      "title": "Comms Infrastructure (US Cell Towers)",
+      "title": "Comms Infrastructure (Cell Towers, 50K US)",
       "source": "koop",
       "table": "atrivedi.koop_demo.cell_towers",
       "renderer": "towers",
-      "visible": false,
+      "visible": true,
       "minScale": 1000000,
       "popupFields": ["tower_name", "carrier", "tower_type", "height_ft", "frequency_mhz", "status", "city", "state"]
-    },
-    {
-      "id": "cdf_towers",
-      "tab": "cop",
-      "title": "Comms Infrastructure — EDITABLE (CDF / Lakebase via ArcGIS Server)",
-      "source": "cdf",
-      "url": "https://18.234.193.124:6443/arcgis/rest/services/CellTowersEditableCDF/FeatureServer/0",
-      "renderer": "towersEditable",
-      "visible": false,
-      "editable": true,
-      "popupFields": ["tower_name", "carrier", "tower_type", "height_ft", "status", "city", "state"]
     },
     {
       "id": "ais",
