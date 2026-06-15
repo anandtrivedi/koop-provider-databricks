@@ -6,8 +6,9 @@ require([
   'esri/layers/FeatureLayer',
   'esri/widgets/Editor',
   'esri/widgets/Expand',
-  'esri/identity/IdentityManager'
-], function (Map, MapView, FeatureLayer, Editor, Expand, esriId) {
+  'esri/identity/IdentityManager',
+  'esri/core/reactiveUtils'
+], function (Map, MapView, FeatureLayer, Editor, Expand, esriId, reactiveUtils) {
   const state = {
     config: null,
     layers: {}, // id -> { config, layer, enabled }
@@ -239,6 +240,29 @@ require([
   function syncVisibility () {
     Object.values(state.layers).forEach(entry => {
       entry.layer.visible = entry.enabled && entry.config.tab === state.activeTab
+    })
+    waitForVisible()
+  }
+
+  // Show the "please wait" overlay ONLY while the map is still fetching/drawing.
+  // A short delay before showing means fast/cached loads (e.g. after the first
+  // query) never flash it; it hides the instant view.updating settles to false.
+  let loadSession = 0
+  function showLoading (on) {
+    const el = document.getElementById('loading')
+    if (el) el.classList.toggle('show', on)
+  }
+  function waitForVisible () {
+    const myId = ++loadSession
+    const timer = setTimeout(() => {
+      if (myId === loadSession && view.updating) showLoading(true)
+    }, 450)
+    view.when(() => {
+      reactiveUtils.whenOnce(() => !view.updating).then(() => {
+        if (myId !== loadSession) return
+        clearTimeout(timer)
+        showLoading(false)
+      })
     })
   }
 

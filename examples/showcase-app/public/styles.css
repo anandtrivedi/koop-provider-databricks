@@ -117,7 +117,45 @@ h1 { font-size: 18px; letter-spacing: 3px; color: var(--accent); }
 .badge-koop { background: #1c3a52; color: #58a6ff; }
 .badge-cdf { background: #3a2a52; color: #bc8cff; }
 
-#view { flex: 1; }
+#view { flex: 1; position: relative; }
+
+/* loading overlay — only shown while the map is still fetching/drawing */
+#loading {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 17, 22, 0.55);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+#loading.show { opacity: 1; pointer-events: auto; }
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 30px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--panel-border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; font-weight: 600; color: var(--text); }
+.loading-sub { font-size: 12px; color: var(--text-dim); }
 
 #inspector {
   width: 420px;
