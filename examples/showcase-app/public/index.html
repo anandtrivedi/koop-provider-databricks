@@ -7,6 +7,32 @@
   <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://js.arcgis.com/4.30/"></script>
+  <style>
+    /* ---- Guided demo tour (consistent across the geo demo apps) ---- */
+    .play-demo-btn { display:flex; align-items:center; gap:6px; background:#0f969c; color:#fff;
+      border:none; border-radius:6px; padding:6px 13px; font:600 12.5px system-ui,sans-serif;
+      cursor:pointer; letter-spacing:.3px; transition:background .15s; white-space:nowrap; }
+    .play-demo-btn:hover { background:#13b3ba; }
+    .play-demo-btn.playing { background:#1c2b3a; color:#9fb0c8; }
+    #tourPanel { position:fixed; left:50%; bottom:42px; transform:translateX(-50%);
+      width:min(560px,calc(100% - 40px)); z-index:500; background:rgba(13,20,33,0.95);
+      border:1px solid rgba(15,150,156,0.45); border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.5);
+      color:#e6ecf7; font-family:system-ui,sans-serif; display:none; overflow:hidden; }
+    #tourPanel.visible { display:block; }
+    #tourPanel .tour-bar { height:3px; background:rgba(255,255,255,.08); }
+    #tourPanel .tour-bar > span { display:block; height:100%; background:#0f969c; width:0; transition:width .3s linear; }
+    #tourPanel .tour-body { padding:14px 16px 12px; }
+    #tourPanel .tour-step { color:#5fd0d6; font:700 11px system-ui,sans-serif; letter-spacing:1px; text-transform:uppercase; }
+    #tourPanel .tour-title { font-size:15.5px; font-weight:700; margin:3px 0 5px; color:#fff; }
+    #tourPanel .tour-text { font-size:13px; line-height:1.5; color:#c6d0e2; }
+    #tourPanel .tour-text b { color:#7fe3e8; font-weight:600; }
+    #tourPanel .tour-controls { display:flex; align-items:center; gap:8px; padding:10px 16px 13px; border-top:1px solid rgba(255,255,255,.06); }
+    #tourPanel .tour-controls button { background:#1c2b3a; color:#cdd8ec; border:1px solid rgba(255,255,255,.1);
+      border-radius:5px; padding:5px 11px; font:600 12px system-ui,sans-serif; cursor:pointer; }
+    #tourPanel .tour-controls button:hover { background:#27384b; }
+    #tourPanel .tour-controls .tour-spacer { flex:1; }
+    #tourPanel .tour-controls .tour-close { color:#8892b0; }
+  </style>
 </head>
 <body>
   <div id="banner">UNCLASSIFIED</div>
@@ -17,9 +43,27 @@
     </div>
     <nav id="tabs"></nav>
     <div class="header-right">
+      <button class="play-demo-btn" id="playDemoBtn" onclick="tourToggle()">▶ Play Demo</button>
       <span id="conn-status" class="chip chip-pending">connecting…</span>
     </div>
   </header>
+
+  <!-- Guided narrated demo tour -->
+  <div id="tourPanel">
+    <div class="tour-bar"><span id="tourProgress"></span></div>
+    <div class="tour-body">
+      <div class="tour-step" id="tourStep">Step 1</div>
+      <div class="tour-title" id="tourTitle"></div>
+      <div class="tour-text" id="tourText"></div>
+    </div>
+    <div class="tour-controls">
+      <button onclick="tourPrev()">‹ Back</button>
+      <button id="tourPlayPause" onclick="tourPlayPause()">⏸ Pause</button>
+      <button onclick="tourNext()">Next ›</button>
+      <span class="tour-spacer"></span>
+      <button class="tour-close" onclick="tourStop()">✕ Close</button>
+    </div>
+  </div>
 
   <div id="main">
     <aside id="layer-panel">

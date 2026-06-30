@@ -391,4 +391,80 @@ require([
   function escapeHtml (s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
+
+  // -------------------------------------------------------- guided demo tour
+  // A "Play Demo" narrated tour, consistent with the other geo demo apps. It
+  // steps through the configured tabs, flying the camera (applyTab) while
+  // narrating how points are queried live from Databricks and served to ArcGIS
+  // via Koop. Built lazily so it picks up tabs from /api/layers.
+  var tour = { idx: 0, steps: [], playing: false, timer: null }
+  var TOUR_MS = 9500
+
+  function buildTourSteps () {
+    var steps = [{
+      title: 'Live from the Databricks Lakehouse',
+      text: 'Every layer here is served <b>live from Databricks</b> via the <b>Koop</b> provider — nothing is copied into ArcGIS. Watch the <b>Query Inspector</b> on the right: each pan, zoom or filter pushes a spatial SQL query (<b>ST_*</b> functions) down to Databricks and returns only what’s in view.'
+    }]
+    var tabs = (state.config && state.config.tabs) || {}
+    Object.keys(tabs).slice(0, 4).forEach(function (key) {
+      var t = tabs[key]
+      var extra = /maritime|track|vessel|ais/i.test(key + ' ' + (t.title || ''))
+        ? ' Use <b>Track History Replay</b> to scrub the time slider — each frame is a fresh time-filtered query to Databricks.'
+        : ''
+      steps.push({
+        tab: key,
+        title: t.title || key,
+        text: 'The <b>' + (t.title || key) + '</b> view. These ArcGIS FeatureLayers are backed by <b>Databricks tables</b>; Koop translates the map query to Databricks SQL on the fly.' + extra
+      })
+    })
+    steps.push({
+      title: 'Lakehouse → Koop → ArcGIS',
+      text: 'Everything you saw was queried <b>live from Databricks</b> and rendered in ArcGIS through Koop — no extracts, no sync. Press <b>↺ Replay</b> to run it again.'
+    })
+    return steps
+  }
+
+  function tourRender () {
+    var s = tour.steps[tour.idx]
+    document.getElementById('tourStep').textContent = 'Step ' + (tour.idx + 1) + ' / ' + tour.steps.length
+    document.getElementById('tourTitle').textContent = s.title
+    document.getElementById('tourText').innerHTML = s.text
+    var bar = document.getElementById('tourProgress')
+    bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth
+    bar.style.transition = 'width ' + TOUR_MS + 'ms linear'
+    bar.style.width = tour.playing ? '100%' : (((tour.idx + 1) / tour.steps.length) * 100) + '%'
+    if (s.tab) { try { state.activeTab = s.tab; applyTab(s.tab) } catch (e) {} }
+  }
+  function tourSchedule () {
+    clearTimeout(tour.timer)
+    if (!tour.playing) return
+    tour.timer = setTimeout(function () {
+      if (tour.idx < tour.steps.length - 1) { tour.idx++; tourRender(); tourSchedule() }
+      else { tour.playing = false; tourUpdateBtn() }
+    }, TOUR_MS)
+  }
+  function tourIsOpen () { return document.getElementById('tourPanel').classList.contains('visible') }
+  function tourUpdateBtn () {
+    var pp = document.getElementById('tourPlayPause')
+    if (pp) pp.textContent = tour.playing ? '⏸ Pause' : (tour.idx >= tour.steps.length - 1 ? '↺ Replay' : '▶ Resume')
+    var main = document.getElementById('playDemoBtn')
+    if (main) { main.classList.toggle('playing', tourIsOpen()); main.textContent = tourIsOpen() ? '■ Stop Demo' : '▶ Play Demo' }
+  }
+  window.tourToggle = function () { tourIsOpen() ? window.tourStop() : window.tourStart() }
+  window.tourStart = function () {
+    tour.steps = buildTourSteps(); tour.idx = 0; tour.playing = true
+    document.getElementById('tourPanel').classList.add('visible')
+    tourRender(); tourSchedule(); tourUpdateBtn()
+  }
+  window.tourStop = function () {
+    tour.playing = false; clearTimeout(tour.timer)
+    document.getElementById('tourPanel').classList.remove('visible'); tourUpdateBtn()
+  }
+  window.tourPlayPause = function () {
+    tour.playing = !tour.playing
+    if (tour.playing && tour.idx >= tour.steps.length - 1) tour.idx = 0
+    tourRender(); tourSchedule(); tourUpdateBtn()
+  }
+  window.tourNext = function () { if (tour.idx < tour.steps.length - 1) { tour.idx++; tourRender(); tourSchedule() } }
+  window.tourPrev = function () { if (tour.idx > 0) { tour.idx--; tourRender(); tourSchedule() } }
 })

@@ -37,6 +37,21 @@ provider defaults: `objectid` id column, `geometry_wkt` WKT geometry, SRID 4326.
 - `/api/querylog` — last 50 SQL statements (drives the Query Inspector)
 - `/health` — liveness
 
+## Running the demo
+
+Open the app, wait for the "Querying Databricks — please wait" loader to clear, then click
+**▶ Play Demo** (top-right). The guided tour auto-advances through narrated steps
+(Pause / Back / Next / ↺ Replay), flying the camera across the configured tabs while
+explaining how each layer is queried live from Databricks and served to ArcGIS via Koop.
+
+**Talk track:**
+1. **Live from the Lakehouse** — nothing is copied into ArcGIS; point at the **Query Inspector** — every pan/zoom pushes a spatial SQL query (`ST_*`) to Databricks.
+2. **Per tab** — each ArcGIS FeatureLayer is backed by a Databricks table; Koop translates the map query to Databricks SQL on the fly (bbox pushdown, attribute WHERE, H3, time).
+3. **Track History Replay** (maritime/track tabs) — scrub the time slider; each frame is a fresh time-filtered query to Databricks.
+4. **Wrap** — Lakehouse → Koop → ArcGIS, all live, no extracts.
+
+Watch the **Query Inspector** throughout — it shows the exact SQL each interaction pushes down.
+
 ## Databricks Apps deployment
 
 `app.yaml` at the repo root deploys this app (the Apps runtime injects the
