@@ -403,7 +403,7 @@ require([
   function buildTourSteps () {
     var steps = [{
       title: 'Live from the Databricks Lakehouse',
-      text: 'Every layer here is served <b>live from Databricks</b> via the <b>Koop</b> provider — nothing is copied into ArcGIS. Watch the <b>Query Inspector</b> on the right: each pan, zoom or filter pushes a spatial SQL query (<b>ST_*</b> functions) down to Databricks and returns only what’s in view.'
+      text: 'Every layer here is served <b>live from Databricks</b> via the <b>Koop</b> provider and rendered with the <b>ArcGIS Maps SDK for JavaScript</b> — nothing is copied into ArcGIS. Watch the <b>Query Inspector</b> on the right: each pan, zoom or filter pushes a spatial SQL query (<b>ST_*</b> functions) down to Databricks and returns only what’s in view.'
     }]
     var tabs = (state.config && state.config.tabs) || {}
     Object.keys(tabs).slice(0, 4).forEach(function (key) {
