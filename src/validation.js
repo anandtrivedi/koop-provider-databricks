@@ -26,24 +26,75 @@ function validateWhereClause (where) {
     return { valid: false, error: 'WHERE clause contains disallowed SQL keyword' }
   }
 
+  // Comments are where this parser and Databricks could read a clause differently; ArcGIS clients never send them
+  if (/--|\/\*|#/.test(withoutLiterals(where))) {
+    return { valid: false, error: 'WHERE clause contains a disallowed comment' }
+  }
+
   // Attempt to parse as valid SQL
   try {
-    const ast = parser.parse(`SELECT * FROM t WHERE ${where}`)
+    const ast = parser.parse(`SELECT * FROM t WHERE ${forParser(where)}`)
 
     // Reject if the parser produced a UNION or other compound statement
     if (ast && ast.value && ast.value.type !== 'Select') {
       return { valid: false, error: 'WHERE clause contains disallowed compound statement' }
     }
 
+    // Only a condition: no GROUP BY / HAVING / ORDER BY / LIMIT riding along after it
+    if (ast.value.groupBy || ast.value.having || ast.value.orderBy || ast.value.limit) {
+      return { valid: false, error: 'WHERE clause may only contain a condition' }
+    }
+
     // Walk AST to reject subqueries (nested SELECT nodes)
     if (containsSubquery(ast)) {
       return { valid: false, error: 'WHERE clause contains disallowed subquery' }
+    }
+
+    const fn = disallowedFunction(ast.value.where)
+    if (fn) {
+      return { valid: false, error: `WHERE clause uses disallowed function ${fn}` }
     }
   } catch (e) {
     return { valid: false, error: 'WHERE clause failed SQL parsing validation' }
   }
 
   return { valid: true, error: null }
+}
+
+// Typed literals and intervals in the standardized SQL ArcGIS clients send for dates (TIMESTAMP '...',
+// DATE '...', INTERVAL '7' DAY), which Databricks runs but the parser doesn't know, read as the plain
+// literal they wrap. Only what is parsed changes; the clause that runs is the one received.
+// Quoted literals as Databricks reads them: backslash escapes a character ('a\'' is one literal), '' is a quote
+const QUOTED = "'(?:[^'\\\\]|\\\\.|'')*'"
+const TYPED_LITERAL = new RegExp(`\\b(?:TIMESTAMP|DATE|TIME)\\s*(${QUOTED})`, 'gi')
+const INTERVAL = new RegExp(`\\bINTERVAL\\s*${QUOTED}\\s*(?:YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?\\b`, 'gi')
+// A doubled quote inside a literal ('O''Brien', as ArcGIS escapes it) is read as \' so the parser takes it.
+function forParser (where) {
+  return where.replace(TYPED_LITERAL, '$1').replace(INTERVAL, '0')
+    .replace(new RegExp(QUOTED, 'g'), lit => `'${lit.slice(1, -1).replace(/''/g, "\\'")}'`)
+}
+
+// The clause with its string literals and quoted identifiers blanked out, for checks on the SQL itself
+const LITERALS = /'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|`(?:[^`]|``)*`/g
+function withoutLiterals (where) {
+  return where.replace(LITERALS, "''")
+}
+
+// Functions a filter has no business calling, that read beyond the table or cost money: secrets (an oracle
+// for anything the querying identity can read, which is the service principal for open tables), Java
+// reflection, outbound HTTP, file and federated reads, and model calls (ai_query, ai_gen, ...)
+const DISALLOWED_FUNCTIONS = /^(secret|try_secret|list_secrets|reflect|try_reflect|java_method|http_request|read_files|read_kafka|read_kinesis|read_pubsub|read_pulsar|read_statestore|remote_query|vector_search|ai_\w+)$/i
+function disallowedFunction (node) {
+  if (!node || typeof node !== 'object') return null
+  if (node.type === 'FunctionCall') {
+    const name = String(node.name || '').replace(/`/g, '').split('.').pop()
+    if (DISALLOWED_FUNCTIONS.test(name)) return name
+  }
+  for (const child of Object.values(node)) {
+    const hit = Array.isArray(child) ? child.map(disallowedFunction).find(Boolean) : disallowedFunction(child)
+    if (hit) return hit
+  }
+  return null
 }
 
 /**

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- WHERE clauses may no longer call functions that reach beyond the table (`secret`, `try_secret`, `reflect`,
+  `java_method`, `http_request`, `read_files`, `remote_query`, `ai_*`, ...). The provider runs every query as one
+  service principal or PAT, so `secret('scope','key') LIKE 'a%'` was a character-by-character oracle for its secrets.
+- WHERE clauses may no longer contain comments or trailing `GROUP BY` / `ORDER BY` / `LIMIT` clauses.
+
+### Fixed
+
+- WHERE clauses with doubled quotes (`name = 'O''Brien'`, as ArcGIS escapes apostrophes) and `TIMESTAMP`/`DATE`/
+  `INTERVAL` literals are accepted.
+- An invalid `time=` is refused instead of silently dropping the time filter.
+- The Databricks operation is closed even when fetching its rows fails.
+
 ## [0.3.0] - 2026-02-09
 
 ### Added

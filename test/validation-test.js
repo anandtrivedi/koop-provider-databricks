@@ -288,3 +288,42 @@ test('field metadata cache uses TTL', t => {
 
   t.end()
 })
+
+// ============================================================================
+// WHERE hardening: functions, comments, trailing clauses, quoting
+// ============================================================================
+
+test('validateWhereClause refuses functions that reach beyond the table', t => {
+  const { validateWhereClause } = require('../src/validation')
+  const refused = ["secret('scope', 'key') LIKE 'a%'", "try_secret('s', 'k') = 'x'", "`ai_query`('m', 'p') = 'x'",
+    "reflect('java.lang.Thread', 'sleep', 100000) IS NULL", "http_request('c', 'GET') IS NOT NULL",
+    "kind = 'a' AND (secret('s', 'k') = 'x' OR 1 = 1)"]
+  const allowed = ["UPPER(name) LIKE 'A%'", "LOWER(kind) = 'a' AND COALESCE(n, 0) > 1", "name = 'secret(1)'"]
+  t.plan(refused.length + allowed.length)
+  for (const w of refused) t.equal(validateWhereClause(w).valid, false, w)
+  for (const w of allowed) t.equal(validateWhereClause(w).valid, true, w)
+})
+
+test('validateWhereClause refuses comments and trailing clauses', t => {
+  const { validateWhereClause } = require('../src/validation')
+  const refused = ['1=1 -- x', '1=1 /* x */', 'x = 1 /*! OR y IN (SELECT 1) */', 'x = 1 # y', '1=1 ORDER BY 1', '1=1 LIMIT 1']
+  const allowed = ["name = 'a--b'", "tag = '#1' AND note = '/* not a comment */'"]
+  t.plan(refused.length + allowed.length)
+  for (const w of refused) t.equal(validateWhereClause(w).valid, false, w)
+  for (const w of allowed) t.equal(validateWhereClause(w).valid, true, w)
+})
+
+test('validateWhereClause accepts ArcGIS quoting and date literals', t => {
+  const { validateWhereClause } = require('../src/validation')
+  const allowed = ["name = 'O''Brien'", "d >= TIMESTAMP '2024-07-04 00:00:00'", "t > CURRENT_TIMESTAMP - INTERVAL '7' DAY"]
+  t.plan(allowed.length + 1)
+  for (const w of allowed) t.equal(validateWhereClause(w).valid, true, w)
+  t.equal(validateWhereClause("x = 'it''s' AND y IN (SELECT 1)").valid, false, 'subquery after an escaped quote')
+})
+
+test('buildTimeFilter refuses a time that is not epoch milliseconds', t => {
+  const { buildTimeFilter } = require('../src/model')._internals
+  t.plan(2)
+  t.throws(() => buildTimeFilter('abc', 'created_at'), /Invalid time parameter/, 'not a number')
+  t.throws(() => buildTimeFilter("0,1000'); DROP TABLE x; --", 'created_at'), /Invalid time parameter/, 'trailing SQL')
+})

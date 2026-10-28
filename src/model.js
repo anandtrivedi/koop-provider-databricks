@@ -40,8 +40,13 @@ function recordQuery (entry) {
 async function executeAndRecord (session, sql, kind, taskId) {
   const started = Date.now()
   const op = await session.executeStatement(sql, { queryTimeout: queryTimeoutSeconds })
-  const rows = await op.fetchAll()
-  await op.close()
+  let rows
+  try {
+    rows = await op.fetchAll()
+  } finally {
+    // Closed even when the fetch fails, so the warehouse doesn't keep the operation open
+    await op.close().catch(err => logger.warn(`${taskId}> Closing operation failed: ${err.message}`))
+  }
   recordQuery({
     at: new Date(started).toISOString(),
     taskId,
@@ -612,7 +617,12 @@ function buildTimeFilter (timeParam, timeField) {
     // Either end may be "null" for an open-ended range (ArcGIS convention).
     // Can also be a single timestamp.
     const parts = timeParam.split(',').map(t => t.trim())
-    const toTimestamp = part => new Date(parseInt(part, 10)).toISOString()
+    // Not epoch milliseconds: refuse rather than drop the filter and answer for all time
+    const toTimestamp = part => {
+      const d = new Date(/^-?\d+$/.test(part) ? parseInt(part, 10) : NaN)
+      if (isNaN(d)) throw Object.assign(new Error(`Invalid time parameter: ${timeParam}`), { code: 400 })
+      return d.toISOString()
+    }
     const isOpen = part => part === '' || part.toLowerCase() === 'null'
 
     if (parts.length === 1 && !isOpen(parts[0])) {
@@ -633,6 +643,7 @@ function buildTimeFilter (timeParam, timeField) {
     logger.warn('Invalid time parameter format:', timeParam)
     return null
   } catch (error) {
+    if (error.code === 400) throw error
     logger.error('Error building time filter:', error)
     return null
   }
