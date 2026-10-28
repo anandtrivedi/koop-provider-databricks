@@ -327,3 +327,20 @@ test('buildTimeFilter refuses a time that is not epoch milliseconds', t => {
   t.throws(() => buildTimeFilter('abc', 'created_at'), /Invalid time parameter/, 'not a number')
   t.throws(() => buildTimeFilter("0,1000'); DROP TABLE x; --", 'created_at'), /Invalid time parameter/, 'trailing SQL')
 })
+
+test('validateWhereClause: a keyword inside a literal does not move where literals end', t => {
+  const { validateWhereClause } = require('../src/validation')
+  const refused = ["a = 'INTERVAL' or secret(chr(115), chr(107)) = chr(120) or b = ' DAY'",
+    "a = 'INTERVAL' or 1 = (select count(*) from other.s.t) or b = ' DAY'"]
+  const allowed = ["status = 'Pending Update'", "note LIKE '%delete%'"]
+  t.plan(refused.length + allowed.length)
+  for (const w of refused) t.equal(validateWhereClause(w).valid, false, w)
+  for (const w of allowed) t.equal(validateWhereClause(w).valid, true, w)
+})
+
+test('buildTimeFilter: three parts are refused; decimal epoch milliseconds are read', t => {
+  const { buildTimeFilter } = require('../src/model')._internals
+  t.plan(2)
+  t.throws(() => buildTimeFilter('0,1000,5', 'created_at'), /Invalid time parameter/)
+  t.equal(buildTimeFilter('0.0,1000.0', 'created_at'), "created_at BETWEEN TIMESTAMP '1970-01-01T00:00:00.000Z' AND TIMESTAMP '1970-01-01T00:00:01.000Z'")
+})

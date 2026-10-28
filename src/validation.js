@@ -21,8 +21,8 @@ function validateWhereClause (where) {
     return { valid: false, error: 'WHERE clause must be a non-empty string' }
   }
 
-  // Check for dangerous keywords before parsing
-  if (DANGEROUS_KEYWORDS.test(where)) {
+  // Check for dangerous keywords before parsing (outside literals: status = 'Pending Update' is a filter)
+  if (DANGEROUS_KEYWORDS.test(withoutLiterals(where))) {
     return { valid: false, error: 'WHERE clause contains disallowed SQL keyword' }
   }
 
@@ -61,23 +61,31 @@ function validateWhereClause (where) {
   return { valid: true, error: null }
 }
 
-// Typed literals and intervals in the standardized SQL ArcGIS clients send for dates (TIMESTAMP '...',
-// DATE '...', INTERVAL '7' DAY), which Databricks runs but the parser doesn't know, read as the plain
-// literal they wrap. Only what is parsed changes; the clause that runs is the one received.
-// Quoted literals as Databricks reads them: backslash escapes a character ('a\'' is one literal), '' is a quote
+// Quoted literals as Databricks reads them: backslash escapes a character ('a\'' is one literal), '' is a quote.
+// One left-to-right scan finds every literal and quoted identifier, so a keyword inside a literal ('INTERVAL')
+// is never taken for the start of a typed literal: the parser and Databricks agree on where each literal ends.
 const QUOTED = "'(?:[^'\\\\]|\\\\.|'')*'"
-const TYPED_LITERAL = new RegExp(`\\b(?:TIMESTAMP|DATE|TIME)\\s*(${QUOTED})`, 'gi')
-const INTERVAL = new RegExp(`\\bINTERVAL\\s*${QUOTED}\\s*(?:YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?\\b`, 'gi')
-// A doubled quote inside a literal ('O''Brien', as ArcGIS escapes it) is read as \' so the parser takes it.
+const DOUBLE_QUOTED = '"(?:[^"\\\\]|\\\\.|"")*"'
+const BACKTICKED = '`(?:[^`]|``)*`'
+const TOKENS = new RegExp([
+  `\\bINTERVAL\\s*${QUOTED}\\s*(?:YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?\\b`, // interval (group-less)
+  `\\b(?:TIMESTAMP|DATE|TIME)\\s*(${QUOTED})`, // 1: typed literal
+  `(${QUOTED})`, // 2: string literal
+  `(${DOUBLE_QUOTED}|${BACKTICKED})` // 3: double-quoted string or quoted identifier
+].join('|'), 'gi')
+
+// A doubled quote inside a literal ('O''Brien', as ArcGIS escapes it) is read as \' so the parser takes it
+const forParserLiteral = lit => `'${lit.slice(1, -1).replace(/''/g, "\\'")}'`
+
+// What the parser reads: typed literals and intervals (which Databricks runs but the parser doesn't know) as
+// the plain literal or number they stand for. Only what is parsed changes; the clause that runs is the one received.
 function forParser (where) {
-  return where.replace(TYPED_LITERAL, '$1').replace(INTERVAL, '0')
-    .replace(new RegExp(QUOTED, 'g'), lit => `'${lit.slice(1, -1).replace(/''/g, "\\'")}'`)
+  return where.replace(TOKENS, (m, typed, lit, other) => typed ? forParserLiteral(typed) : lit ? forParserLiteral(lit) : other || '0')
 }
 
-// The clause with its string literals and quoted identifiers blanked out, for checks on the SQL itself
-const LITERALS = /'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|`(?:[^`]|``)*`/g
+// The clause with its literals and quoted identifiers blanked out, for checks on the SQL itself
 function withoutLiterals (where) {
-  return where.replace(LITERALS, "''")
+  return where.replace(TOKENS, (m, typed, lit, other) => typed || lit || other ? "''" : '0')
 }
 
 // Functions a filter has no business calling, that read beyond the table or cost money: secrets (an oracle

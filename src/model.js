@@ -619,11 +619,12 @@ function buildTimeFilter (timeParam, timeField) {
     const parts = timeParam.split(',').map(t => t.trim())
     // Not epoch milliseconds: refuse rather than drop the filter and answer for all time
     const toTimestamp = part => {
-      const d = new Date(/^-?\d+$/.test(part) ? parseInt(part, 10) : NaN)
+      const d = new Date(/^-?\d+(\.\d+)?$/.test(part) ? Math.trunc(Number(part)) : NaN)
       if (isNaN(d)) throw Object.assign(new Error(`Invalid time parameter: ${timeParam}`), { code: 400 })
       return d.toISOString()
     }
     const isOpen = part => part === '' || part.toLowerCase() === 'null'
+    if (parts.length > 2) throw Object.assign(new Error(`Invalid time parameter: ${timeParam}`), { code: 400 })
 
     if (parts.length === 1 && !isOpen(parts[0])) {
       // Single timestamp - exact match
