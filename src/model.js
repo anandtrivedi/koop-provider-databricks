@@ -24,6 +24,11 @@ const CACHE_MAX_ENTRIES = 100
 const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX) || 100
 const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000
 
+// Both names go into every statement: refuse to start with anything but a plain column name
+for (const [name, value] of [['OBJECT_ID_COLUMN', objectId], ['GEOMETRY_COLUMN', geometryColumn]]) {
+  if (!validateColumnName(value).valid) throw new Error(`${name} must be a plain column name, got: ${value}`)
+}
+
 logger.info(`Configuration: objectId=${objectId}, geometryColumn=${geometryColumn}, geometryFormat=${geometryFormat}, spatialReference=${spatialReference}, maxRows=${maxRows}`)
 
 // Ring buffer of recently executed queries, exposed as Model.recentQueries
@@ -60,11 +65,19 @@ async function executeAndRecord (session, sql, kind, taskId) {
 
 // Simple sliding-window rate limiter (per IP)
 const rateLimitStore = {}
+// Clients tracked at once: past this, the longest-tracked is dropped, so spraying made-up addresses can't fill memory
+const RATE_LIMIT_MAX_CLIENTS = 10000
+let rateLimitClients = 0
 
 function checkRateLimit (ip) {
   const now = Date.now()
   if (!rateLimitStore[ip]) {
+    if (rateLimitClients >= RATE_LIMIT_MAX_CLIENTS) {
+      delete rateLimitStore[Object.keys(rateLimitStore)[0]]
+      rateLimitClients--
+    }
     rateLimitStore[ip] = []
+    rateLimitClients++
   }
   // Remove expired timestamps
   rateLimitStore[ip] = rateLimitStore[ip].filter(t => now - t < rateLimitWindowMs)
@@ -109,10 +122,11 @@ Model.prototype.getData = function (req, callback) {
   const thisTask = uuidv4()
   logger.info(`${thisTask}> Received request: ${req.url}`)
 
-  // Rate limiting. Behind a load balancer req.ip is the LB address (Express
-  // 'trust proxy' is not set by Koop), so prefer the first X-Forwarded-For hop.
+  // Rate limiting. Behind a load balancer req.ip is the LB address (Express 'trust proxy' is not set by Koop),
+  // so use X-Forwarded-For: its last hop, the one the load balancer appended. Earlier hops are whatever the
+  // client sent, so keying on them would let a client pick a fresh bucket for every request.
   const forwardedFor = req.headers && req.headers['x-forwarded-for']
-  const clientIp = (typeof forwardedFor === 'string' && forwardedFor.split(',')[0].trim()) ||
+  const clientIp = (typeof forwardedFor === 'string' && forwardedFor.split(',').pop().trim()) ||
     req.ip || req.socket?.remoteAddress || 'unknown'
   if (!checkRateLimit(clientIp)) {
     logger.warn(`${thisTask}> Rate limit exceeded for ${clientIp}`)
@@ -138,6 +152,13 @@ Model.prototype.getData = function (req, callback) {
 
         let queryString
         let result
+
+        // Koop can't filter a count, id list or extent by geometry afterwards: a spatial filter SQL can't take
+        // is refused rather than answered for the whole table
+        if ((returnCountOnly || returnIdsOnly || returnExtentOnly) && req.query.geometry &&
+          buildBboxFilter(req.query.geometry, req.query.geometryType, req.query.inSR) === null) {
+          return callback(Object.assign(new Error('Unsupported geometry filter: an envelope or point in WGS84 or Web Mercator is expected'), { code: 400 }))
+        }
 
         if (returnCountOnly) {
           // Return only count
@@ -490,9 +511,19 @@ function webMercatorToWgs84 (x, y) {
 // (e.g. {"xmin":...,"spatialReference":{"wkid":102100}}). Koop core may have
 // already parsed the JSON form into an object before getData is called.
 // Returns null for unsupported geometry filters (e.g. polygon).
+// A spatial reference as ArcGIS clients send it: 102100, "102100", {"wkid":102100}, {"latestWkid":3857} or its
+// JSON text -> the wkid as a number, or null
+function parseWkid (sr) {
+  if (typeof sr === 'string' && sr.trim().startsWith('{')) {
+    try { sr = JSON.parse(sr) } catch (error) { return null }
+  }
+  if (sr && typeof sr === 'object') sr = sr.latestWkid || sr.wkid
+  return parseInt(sr) || null
+}
+
 function parseBbox (geometryParam, inSR) {
   let coords
-  let wkid = parseInt(inSR) || null
+  let wkid = parseWkid(inSR)
   let envelope = null
 
   if (geometryParam && typeof geometryParam === 'object') {
@@ -519,14 +550,17 @@ function parseBbox (geometryParam, inSR) {
     } else {
       return null
     }
-    if (envelope.spatialReference && envelope.spatialReference.wkid) {
-      wkid = envelope.spatialReference.wkid
+    if (envelope.spatialReference) {
+      wkid = parseWkid(envelope.spatialReference) || wkid
     }
   }
 
   if (!coords || coords.length !== 4 || coords.some(c => typeof c !== 'number' || isNaN(c))) {
     return null
   }
+  // Only WGS84 and Web Mercator are understood; other coordinates (state plane feet, UTM meters) read as
+  // degrees would filter on the wrong place
+  if (wkid && ![4326, 102100, 3857, 900913].includes(wkid)) return null
 
   if (wkid === 102100 || wkid === 3857 || wkid === 900913) {
     const [xmin, ymin] = webMercatorToWgs84(coords[0], coords[1])
@@ -601,6 +635,8 @@ function buildH3Filter (query) {
 
 // Build time filter for temporal queries
 function buildTimeFilter (timeParam, timeField) {
+  // time given twice arrives as an array: refuse it rather than drop the filter
+  if (typeof timeParam !== 'string') throw Object.assign(new Error('Invalid time parameter: one "start,end" value expected'), { code: 400 })
   // Default time field if not specified
   const field = timeField || 'created_at'
 
@@ -685,8 +721,10 @@ function translateWithSTFunctions (rows, query) {
       }
 
       // Remove the __geojson__ field from properties
+      // and the raw geometry column, which is already the feature's geometry
       const properties = { ...row }
       delete properties.__geojson__
+      delete properties[geometryColumn]
 
       return {
         type: 'Feature',
@@ -747,17 +785,18 @@ function getAllCoordinates (geometry) {
       case 'Point':
         coords.push(geom.coordinates)
         break
+      // Loops, not push(...): spreading a ring of ~100k vertices exceeds the engine's argument limit
       case 'LineString':
       case 'MultiPoint':
-        coords.push(...geom.coordinates)
+        for (const c of geom.coordinates) coords.push(c)
         break
       case 'Polygon':
       case 'MultiLineString':
-        geom.coordinates.forEach(ring => coords.push(...ring))
+        geom.coordinates.forEach(ring => { for (const c of ring) coords.push(c) })
         break
       case 'MultiPolygon':
         geom.coordinates.forEach(polygon => {
-          polygon.forEach(ring => coords.push(...ring))
+          polygon.forEach(ring => { for (const c of ring) coords.push(c) })
         })
         break
     }

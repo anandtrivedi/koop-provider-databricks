@@ -104,7 +104,8 @@ class ConnectionManager {
       return await client.openSession()
     } catch (err) {
       logger.warn(`openSession failed (${err.message}); reconnecting and retrying once`)
-      await this.close()
+      // Another request may have reconnected already; only drop the client that failed
+      if (this.client === client) await this.close()
       const freshClient = await this.connect()
       return freshClient.openSession()
     }

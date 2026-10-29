@@ -695,3 +695,67 @@ test('buildWhereClauses - combines all filter types', function (t) {
   t.ok(clauses.some(c => c.includes('position_time BETWEEN')), 'has time')
   t.end()
 })
+
+// ============================================================================
+// Robustness: spatial references, big geometries, time shape, count filters
+// ============================================================================
+
+test('parseBbox reads the spatial reference however ArcGIS clients send it', function (t) {
+  const { parseBbox } = Model._internals
+  const merc = [-8575000, 4705000, -8570000, 4710000]
+  const forms = [
+    [merc.join(','), '102100'],
+    [merc.join(','), '{"wkid":102100}'],
+    [merc.join(','), { latestWkid: 3857 }],
+    [JSON.stringify({ xmin: merc[0], ymin: merc[1], xmax: merc[2], ymax: merc[3], spatialReference: { wkid: '102100' } })],
+    [JSON.stringify({ xmin: merc[0], ymin: merc[1], xmax: merc[2], ymax: merc[3], spatialReference: { latestWkid: 3857, wkid: 102100 } })]
+  ]
+  t.plan(forms.length)
+  for (const [g, sr] of forms) {
+    const box = parseBbox(g, sr)
+    t.ok(box && box[0] > -78 && box[0] < -76, `degrees, not meters: ${JSON.stringify(sr || g).slice(0, 60)}`)
+  }
+})
+
+test('getAllCoordinates handles a ring of 200k vertices', function (t) {
+  t.plan(1)
+  const ring = Array.from({ length: 200000 }, (_, i) => [i % 360 - 180, 0])
+  t.equal(getAllCoordinates({ type: 'Polygon', coordinates: [ring] }).length, 200000)
+})
+
+test('translateWithSTFunctions leaves the raw geometry column out of properties', function (t) {
+  t.plan(2)
+  const fc = translateWithSTFunctions([{ objectid: 1, name: 'a', geometry_wkt: 'POINT (1 2)', __geojson__: '{"type":"Point","coordinates":[1,2]}' }], {})
+  t.equal(fc.features[0].properties.geometry_wkt, undefined)
+  t.equal(fc.features[0].properties.name, 'a')
+})
+
+test('buildTimeFilter refuses time given more than once', function (t) {
+  t.plan(1)
+  t.throws(() => buildTimeFilter(['1000', '2000'], 'created_at'), /Invalid time parameter/)
+})
+
+test('getData refuses a count, id or extent request with a spatial filter SQL cannot take', function (t) {
+  const model = new Model()
+  const polygon = JSON.stringify({ rings: [[[0, 0], [1, 0], [1, 1], [0, 0]]] })
+  const modes = ['returnCountOnly', 'returnIdsOnly', 'returnExtentOnly']
+  t.plan(modes.length)
+  const connection = require('../src/connection')
+  const original = connection.getSession
+  connection.getSession = async () => ({ executeStatement: async () => { throw new Error('should not query') }, close: async () => {} })
+  let left = modes.length
+  for (const mode of modes) {
+    model.getData({ headers: {}, params: { id: 'c.s.t' }, url: '/q', query: { [mode]: 'true', geometry: polygon } }, err => {
+      t.equal(err && err.code, 400, mode)
+      if (--left === 0) connection.getSession = original
+    })
+  }
+})
+
+test('parseBbox refuses spatial references it cannot convert', function (t) {
+  const { parseBbox } = Model._internals
+  t.plan(3)
+  t.equal(parseBbox('900000,100000,910000,110000', '2263'), null, 'state plane feet are not degrees')
+  t.equal(parseBbox(JSON.stringify({ xmin: 0, ymin: 0, xmax: 1, ymax: 1, spatialReference: { wkid: 32618 } })), null, 'UTM')
+  t.deepEqual(parseBbox('-77,38,-76,39', '4326'), [-77, 38, -76, 39], 'WGS84 as is')
+})
