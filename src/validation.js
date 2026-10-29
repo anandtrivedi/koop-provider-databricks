@@ -26,6 +26,10 @@ function validateWhereClause (where) {
     return { valid: false, error: 'WHERE clause contains disallowed SQL keyword' }
   }
 
+  if (hasPrefixedLiteral(where)) {
+    return { valid: false, error: 'WHERE clause contains a disallowed prefixed literal' }
+  }
+
   // Comments are where this parser and Databricks could read a clause differently; ArcGIS clients never send them
   if (/--|\/\*|#/.test(withoutLiterals(where))) {
     return { valid: false, error: 'WHERE clause contains a disallowed comment' }
@@ -71,7 +75,8 @@ const TOKENS = new RegExp([
   `\\bINTERVAL\\s*${QUOTED}\\s*(?:YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?\\b`, // interval (group-less)
   `\\b(?:TIMESTAMP|DATE|TIME)\\s*(${QUOTED})`, // 1: typed literal
   `(${QUOTED})`, // 2: string literal
-  `(${DOUBLE_QUOTED}|${BACKTICKED})` // 3: double-quoted string or quoted identifier
+  `(${DOUBLE_QUOTED}|${BACKTICKED})`, // 3: double-quoted string or quoted identifier
+  '([A-Za-z0-9_&])(?=[\'"])' // 4: a prefix glued to a literal (r'', X'', U&''), which Spark reads its own way
 ].join('|'), 'gi')
 
 // A doubled quote inside a literal ('O''Brien', as ArcGIS escapes it) is read as \' so the parser takes it
@@ -80,12 +85,19 @@ const forParserLiteral = lit => `'${lit.slice(1, -1).replace(/''/g, "\\'")}'`
 // What the parser reads: typed literals and intervals (which Databricks runs but the parser doesn't know) as
 // the plain literal or number they stand for. Only what is parsed changes; the clause that runs is the one received.
 function forParser (where) {
-  return where.replace(TOKENS, (m, typed, lit, other) => typed ? forParserLiteral(typed) : lit ? forParserLiteral(lit) : other || '0')
+  return where.replace(TOKENS, (m, typed, lit, other, prefix) => prefix || (typed ? forParserLiteral(typed) : lit ? forParserLiteral(lit) : other || '0'))
+}
+
+// Raw (r'\'), hex, binary or Unicode literals: their quotes and escapes don't follow the rules above
+function hasPrefixedLiteral (where) {
+  let found = false
+  where.replace(TOKENS, (m, typed, lit, other, prefix) => { if (prefix) found = true; return m })
+  return found
 }
 
 // The clause with its literals and quoted identifiers blanked out, for checks on the SQL itself
 function withoutLiterals (where) {
-  return where.replace(TOKENS, (m, typed, lit, other) => typed || lit || other ? "''" : '0')
+  return where.replace(TOKENS, (m, typed, lit, other, prefix) => prefix || (typed || lit || other ? "''" : '0'))
 }
 
 // Functions a filter has no business calling, that read beyond the table or cost money: secrets (an oracle

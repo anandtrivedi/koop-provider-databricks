@@ -344,3 +344,12 @@ test('buildTimeFilter: three parts are refused; decimal epoch milliseconds are r
   t.throws(() => buildTimeFilter('0,1000,5', 'created_at'), /Invalid time parameter/)
   t.equal(buildTimeFilter('0.0,1000.0', 'created_at'), "created_at BETWEEN TIMESTAMP '1970-01-01T00:00:00.000Z' AND TIMESTAMP '1970-01-01T00:00:01.000Z'")
 })
+
+test('validateWhereClause refuses raw, hex and Unicode literals', t => {
+  const { validateWhereClause } = require('../src/validation')
+  const refused = ["x = r'\\' OR secret('s', 'k') = 'x' OR y = '", "x = R'abc'", "x = X'41'"]
+  const allowed = ["name='ArcGIS'", "t >= DATE'2024-01-01'"]
+  t.plan(refused.length + allowed.length)
+  for (const w of refused) t.equal(validateWhereClause(w).valid, false, w)
+  for (const w of allowed) t.equal(validateWhereClause(w).valid, true, w)
+})
